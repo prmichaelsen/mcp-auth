@@ -1,0 +1,24 @@
+{
+  "name": "mcp-auth-example-api-token-resolution",
+  "version": "1.0.0",
+  "description": "API-based token resolution example for @prmichaelsen/mcp-auth",
+  "type": "module",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc && node dist/index.js"
+  },
+  "dependencies": {
+    "@prmichaelsen/mcp-auth": "file:../..",
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "express": "^4.21.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/cors": "^2.8.19",
+    "typescript": "^5.7.2"
+  }
+}
