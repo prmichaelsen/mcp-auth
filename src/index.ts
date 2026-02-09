@@ -30,12 +30,21 @@ export {
 // Use this to build new MCP servers with integrated authentication
 // Provides fine-grained control over auth per tool
 
-// TODO: Implement tool-level auth
-// export { AuthenticatedMCPServer } from './server/mcp-server.js';
-// export { withAuth } from './server/decorators.js';
-// export type { Tool } from './server/tool.js';
-// export { AuthenticatedTool } from './server/tool.js';
-// export { compose, withRateLimit, withLogging } from './server/middleware.js';
+export {
+  AuthenticatedMCPServer,
+  type ServerConfig,
+  type NormalizedServerConfig,
+  withAuth,
+  compose,
+  withLogging,
+  withRateLimit,
+  withTimeout,
+  withRetry,
+  type Tool,
+  AuthenticatedTool,
+  createAuthenticatedTool,
+  type AuthenticatedToolHandler
+} from './server/index.js';
 
 // ============================================================================
 // SHARED: CORE TYPES

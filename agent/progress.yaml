@@ -222,8 +222,10 @@ estimated_time: "1-2 hours"
 
 ## Current Focus
 
-phase: "Phase 4: Simple Provider Implementation"
-next_task: "Implement EnvAuthProvider and SimpleTokenResolver"
+phase: "Phase 5b: Tool-Level Implementation (Optional)"
+next_task: "Implement AuthenticatedMCPServer and withAuth decorator"
+
+note: "Primary pattern (server wrapping) is complete and functional. Tool-level auth is optional for fine-grained control."
 
 ## Important Architectural Decisions
 
