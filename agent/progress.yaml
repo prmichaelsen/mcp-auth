@@ -102,26 +102,27 @@ files_to_create:
   - src/wrapper/server-wrapper.ts
   - src/wrapper/pool.ts
 
-### Phase 5b: Tool-Level Implementation (Pattern 2)
-- [ ] Implement ServerConfig (src/server/config.ts)
-- [ ] Implement AuthenticatedMCPServer (src/server/mcp-server.ts)
-- [ ] Implement withAuth decorator (src/server/decorators.ts)
-- [ ] Implement Tool interface (src/server/tool.ts)
-- [ ] Implement AuthenticatedTool wrapper
-- [ ] Implement compose() for middleware
-- [ ] Implement withRateLimit, withLogging middleware
-- [ ] Add server exports to src/server/index.ts
+### Phase 5b: Tool-Level Implementation (Pattern 2) ✅ COMPLETE
+- [x] Implement ServerConfig (src/server/config.ts)
+- [x] Implement AuthenticatedMCPServer (src/server/mcp-server.ts)
+- [x] Implement withAuth decorator (src/server/decorators.ts)
+- [x] Implement Tool interface (src/server/tool.ts)
+- [x] Implement AuthenticatedTool wrapper
+- [x] Implement compose() for middleware
+- [x] Implement withLogging, withRateLimit, withTimeout, withRetry middleware
+- [x] Add server exports to src/server/index.ts
+- [x] Update main exports
 
 priority: HIGH
 estimated_time: "8-10 hours"
 
-files_to_create:
+deliverables:
   - src/server/index.ts
   - src/server/config.ts
   - src/server/mcp-server.ts
   - src/server/decorators.ts
   - src/server/tool.ts
-  - src/server/middleware.ts
+  - agent/provider-architecture-clarification.md
 
 ### Phase 6: Middleware Implementation
 - [ ] Implement auth middleware (src/server/middleware/auth-middleware.ts)
@@ -222,10 +223,18 @@ estimated_time: "1-2 hours"
 
 ## Current Focus
 
-phase: "Phase 5b: Tool-Level Implementation (Optional)"
-next_task: "Implement AuthenticatedMCPServer and withAuth decorator"
+phase: "Phase 6-8: Middleware, Transports, and Advanced Providers"
+next_task: "Choose next phase: Examples (Phase 9) or Advanced Providers (Phase 8)"
 
-note: "Primary pattern (server wrapping) is complete and functional. Tool-level auth is optional for fine-grained control."
+note: "Both core patterns (server wrapping + tool-level auth) are complete and functional!"
+
+completed_phases:
+  - Phase 1: Architecture & Design
+  - Phase 2: Project Bootstrap
+  - Phase 3: Core Implementation
+  - Phase 4: Simple Provider Implementation
+  - Phase 5: Server Wrapper Implementation (PRIMARY)
+  - Phase 5b: Tool-Level Implementation (ALTERNATIVE)
 
 ## Important Architectural Decisions
 
