@@ -1,0 +1,279 @@
+# Project Progress Tracker
+
+project: "@prmichaelsen/mcp-auth"
+version: "0.1.0"
+status: "in_progress"
+last_updated: "2026-02-09"
+
+## Phases
+
+### Phase 1: Architecture & Design ✅ COMPLETE
+- [x] Design auth-agnostic architecture with provider interface
+- [x] Document authentication provider interface
+- [x] Design lib/ directory structure for reusable MCP auth framework
+- [x] Document lib/ as standalone package
+- [x] Design tool registration patterns (withAuth, AuthenticatedTool, compose)
+- [x] Design server wrapping pattern (zero-modification approach)
+- [x] Design dual-pattern architecture (server wrapping + tool-level auth)
+- [x] Compare authentication schemes (JWT, OAuth, API Key, Firebase)
+- [x] Create comprehensive architecture documentation
+
+deliverables:
+  - agent/multi-tenant-architecture.md
+  - agent/lib-structure.md
+  - agent/tool-patterns.md
+  - agent/server-wrapping-pattern.md
+  - agent/server-contract.md
+  - agent/dual-pattern-architecture.md
+
+### Phase 2: Project Bootstrap ✅ COMPLETE
+- [x] Copy agent/ docs to /home/prmichaelsen/mcp-auth/agent
+- [x] Create package.json with proper exports and scoping
+- [x] Setup TypeScript configuration
+- [x] Setup esbuild build process
+- [x] Create .gitignore
+- [x] Write README.md with usage examples
+- [x] Add MIT LICENSE
+- [x] Create summary.md and progress.yaml
+
+deliverables:
+  - package.json
+  - tsconfig.json
+  - esbuild.build.js
+  - esbuild.watch.js
+  - .gitignore
+  - README.md
+  - LICENSE
+  - summary.md
+  - progress.yaml
+
+### Phase 3: Core Implementation ✅ COMPLETE
+- [x] Create src/ directory structure
+- [x] Implement core types (src/types.ts)
+- [x] Implement auth types (src/auth/types.ts)
+- [x] Implement base provider (src/auth/base-provider.ts)
+- [x] Implement error classes (src/utils/errors.ts)
+- [x] Implement logger utility (src/utils/logger.ts)
+- [x] Implement validation utility (src/utils/validation.ts)
+- [x] Create index files for exports
+- [x] Test build process
+
+priority: HIGH
+estimated_time: "4-6 hours"
+
+deliverables:
+  - src/index.ts
+  - src/types.ts
+  - src/auth/index.ts
+  - src/auth/types.ts
+  - src/auth/base-provider.ts
+  - src/utils/errors.ts
+  - src/utils/logger.ts
+  - src/utils/validation.ts
+  - src/utils/index.ts
+  - INTEGRATION.md
+
+### Phase 4: Simple Provider Implementation 🚧 NEXT
+- [ ] Implement EnvAuthProvider (src/auth/providers/env-provider.ts)
+- [ ] Implement SimpleTokenResolver
+- [ ] Add provider exports to src/auth/providers/index.ts
+- [ ] Write unit tests for env provider
+
+priority: HIGH
+estimated_time: "2-3 hours"
+
+files_to_create:
+  - src/auth/providers/index.ts
+  - src/auth/providers/env-provider.ts
+
+### Phase 5: Server Wrapper Implementation (Pattern 1)
+- [ ] Implement ServerWrapperConfig (src/wrapper/config.ts)
+- [ ] Implement AuthenticatedServerWrapper (src/wrapper/server-wrapper.ts)
+- [ ] Implement server pooling logic
+- [ ] Implement per-user server instance management
+- [ ] Add wrapper exports to src/wrapper/index.ts
+
+priority: HIGH
+estimated_time: "8-10 hours"
+
+files_to_create:
+  - src/wrapper/index.ts
+  - src/wrapper/config.ts
+  - src/wrapper/server-wrapper.ts
+  - src/wrapper/pool.ts
+
+### Phase 5b: Tool-Level Implementation (Pattern 2)
+- [ ] Implement ServerConfig (src/server/config.ts)
+- [ ] Implement AuthenticatedMCPServer (src/server/mcp-server.ts)
+- [ ] Implement withAuth decorator (src/server/decorators.ts)
+- [ ] Implement Tool interface (src/server/tool.ts)
+- [ ] Implement AuthenticatedTool wrapper
+- [ ] Implement compose() for middleware
+- [ ] Implement withRateLimit, withLogging middleware
+- [ ] Add server exports to src/server/index.ts
+
+priority: HIGH
+estimated_time: "8-10 hours"
+
+files_to_create:
+  - src/server/index.ts
+  - src/server/config.ts
+  - src/server/mcp-server.ts
+  - src/server/decorators.ts
+  - src/server/tool.ts
+  - src/server/middleware.ts
+
+### Phase 6: Middleware Implementation
+- [ ] Implement auth middleware (src/server/middleware/auth-middleware.ts)
+- [ ] Implement rate limiting (src/server/middleware/rate-limit.ts)
+- [ ] Implement logging middleware (src/server/middleware/logging.ts)
+- [ ] Add middleware exports
+
+priority: MEDIUM
+estimated_time: "3-4 hours"
+
+files_to_create:
+  - src/server/middleware/auth-middleware.ts
+  - src/server/middleware/rate-limit.ts
+  - src/server/middleware/logging.ts
+
+### Phase 7: Transport Implementation
+- [ ] Implement stdio transport wrapper (src/transports/stdio-transport.ts)
+- [ ] Implement HTTP transport wrapper (src/transports/http-transport.ts)
+- [ ] Implement SSE transport wrapper (src/transports/sse-transport.ts)
+- [ ] Add transport exports to src/transports/index.ts
+
+priority: MEDIUM
+estimated_time: "4-5 hours"
+
+files_to_create:
+  - src/transports/index.ts
+  - src/transports/stdio-transport.ts
+  - src/transports/http-transport.ts
+  - src/transports/sse-transport.ts
+
+### Phase 8: Advanced Providers
+- [ ] Implement JWTAuthProvider (src/auth/providers/jwt-provider.ts)
+- [ ] Implement DatabaseTokenResolver
+- [ ] Implement OAuthProvider (src/auth/providers/oauth-provider.ts)
+- [ ] Implement APIKeyProvider (src/auth/providers/apikey-provider.ts)
+- [ ] Add optional dependency handling
+
+priority: MEDIUM
+estimated_time: "6-8 hours"
+
+files_to_create:
+  - src/auth/providers/jwt-provider.ts
+  - src/auth/providers/oauth-provider.ts
+  - src/auth/providers/apikey-provider.ts
+
+### Phase 9: Examples
+- [ ] Create simple stdio example (examples/simple-stdio/)
+- [ ] Create server wrapping example (examples/wrapped-server/)
+- [ ] Create tool-level auth example (examples/tool-level-auth/)
+- [ ] Create hybrid example (examples/hybrid-server/)
+- [ ] Create JWT multi-tenant example (examples/jwt-multi-tenant/)
+- [ ] Create OAuth server example (examples/oauth-server/)
+- [ ] Add example READMEs
+
+priority: MEDIUM
+estimated_time: "6-8 hours"
+
+directories_to_create:
+  - examples/simple-stdio/
+  - examples/wrapped-server/
+  - examples/tool-level-auth/
+  - examples/hybrid-server/
+  - examples/jwt-multi-tenant/
+  - examples/oauth-server/
+
+### Phase 10: Testing & Documentation
+- [ ] Write unit tests for core types
+- [ ] Write unit tests for providers
+- [ ] Write unit tests for server
+- [ ] Write integration tests
+- [ ] Generate API documentation
+- [ ] Add CONTRIBUTING.md
+- [ ] Add CHANGELOG.md
+
+priority: HIGH
+estimated_time: "8-10 hours"
+
+### Phase 11: Integration with agentbase
+- [ ] Update agentbase to use @prmichaelsen/mcp-auth
+- [ ] Refactor agentbase/src/index.ts to use AuthenticatedMCPServer
+- [ ] Test backward compatibility (stdio mode)
+- [ ] Update agentbase README
+
+priority: HIGH
+estimated_time: "2-3 hours"
+
+location: /home/prmichaelsen/agentbase
+
+### Phase 12: Publishing
+- [ ] Final testing
+- [ ] Version bump
+- [ ] npm publish
+- [ ] Create GitHub release
+- [ ] Update documentation
+
+priority: LOW
+estimated_time: "1-2 hours"
+
+## Current Focus
+
+phase: "Phase 4: Simple Provider Implementation"
+next_task: "Implement EnvAuthProvider and SimpleTokenResolver"
+
+## Important Architectural Decisions
+
+- **Ephemeral Instances**: Server wrapping uses ephemeral instances (create per request) instead of pooling
+  * Security: Complete isolation, zero token leakage risk
+  * Performance: 1-2ms overhead is negligible (<1% of request time)
+  * Simplicity: No cache invalidation, automatic memory management
+  * See: agent/ephemeral-vs-cached-instances.md
+
+- **MCP Platform Pattern**: Separate platform (auth/user mgmt) from integration servers
+  * See: agent/mcp-platform-pattern.md
+
+## Dependencies
+
+external:
+  - "@modelcontextprotocol/sdk": "^1.0.4" (peer)
+  - "jsonwebtoken": "^9.0.0" (optional)
+  - "@types/jsonwebtoken": "^9.0.0" (optional)
+
+internal:
+  - None yet (first package in the ecosystem)
+
+## Notes
+
+- Package is designed to be auth-agnostic and reusable
+- Will be used by agentbase and future MCP servers
+- Focus on developer experience (minimal boilerplate)
+- DUAL-PATTERN ARCHITECTURE:
+  * Pattern 1: Server wrapping (zero modification to existing servers)
+  * Pattern 2: Tool-level auth (fine-grained control for new servers)
+- Both patterns share auth infrastructure (providers, token resolvers)
+- Support both simple (function-based) and complex (class-based) use cases
+- Server pooling for performance optimization (Pattern 1)
+- Middleware composition for advanced scenarios (Pattern 2)
+- Servers can support both patterns simultaneously (hybrid approach)
+
+## Quick Start for Next Session
+
+1. Run: `cd /home/prmichaelsen/mcp-auth && npm install`
+2. Read: `summary.md` for context
+3. Reference: `agent/lib-structure.md` for implementation details
+4. Start with: Phase 3 - Create `src/types.ts` and `src/auth/types.ts`
+5. Follow: The interface definitions in `agent/lib-structure.md`
+
+## Related Files
+
+- Architecture docs: `/home/prmichaelsen/mcp-auth/agent/`
+- Dual-pattern architecture: `/home/prmichaelsen/mcp-auth/agent/dual-pattern-architecture.md`
+- Server wrapping pattern: `/home/prmichaelsen/mcp-auth/agent/server-wrapping-pattern.md`
+- Server contract: `/home/prmichaelsen/mcp-auth/agent/server-contract.md`
+- Tool patterns: `/home/prmichaelsen/mcp-auth/agent/tool-patterns.md`
+- Original project: `/home/prmichaelsen/agentbase/`
+- Package config: `/home/prmichaelsen/mcp-auth/package.json`

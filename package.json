@@ -1,0 +1,93 @@
+{
+  "name": "@prmichaelsen/mcp-auth",
+  "version": "0.1.0",
+  "description": "Authentication and multi-tenancy framework for MCP servers",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./auth": {
+      "types": "./dist/auth/index.d.ts",
+      "import": "./dist/auth/index.js"
+    },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "import": "./dist/server/index.js"
+    },
+    "./transports": {
+      "types": "./dist/transports/index.d.ts",
+      "import": "./dist/transports/index.js"
+    },
+    "./providers/env": {
+      "types": "./dist/auth/providers/env-provider.d.ts",
+      "import": "./dist/auth/providers/env-provider.js"
+    },
+    "./providers/jwt": {
+      "types": "./dist/auth/providers/jwt-provider.d.ts",
+      "import": "./dist/auth/providers/jwt-provider.js"
+    },
+    "./providers/oauth": {
+      "types": "./dist/auth/providers/oauth-provider.d.ts",
+      "import": "./dist/auth/providers/oauth-provider.js"
+    },
+    "./providers/apikey": {
+      "types": "./dist/auth/providers/apikey-provider.d.ts",
+      "import": "./dist/auth/providers/apikey-provider.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "npm run build:types && npm run build:bundle",
+    "build:types": "tsc --emitDeclarationOnly",
+    "build:bundle": "node esbuild.build.js",
+    "watch": "node esbuild.watch.js",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "authentication",
+    "multi-tenant",
+    "jwt",
+    "oauth",
+    "auth-provider"
+  ],
+  "author": "prmichaelsen",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/prmichaelsen/mcp-auth.git"
+  },
+  "bugs": {
+    "url": "https://github.com/prmichaelsen/mcp-auth/issues"
+  },
+  "homepage": "https://github.com/prmichaelsen/mcp-auth#readme",
+  "peerDependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.19.10",
+    "esbuild": "^0.24.2",
+    "typescript": "^5.7.2"
+  },
+  "optionalDependencies": {
+    "@types/jsonwebtoken": "^9.0.0",
+    "jsonwebtoken": "^9.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
