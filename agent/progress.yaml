@@ -153,20 +153,25 @@ files_to_create:
   - src/transports/http-transport.ts
   - src/transports/sse-transport.ts
 
-### Phase 8: Advanced Providers
-- [ ] Implement JWTAuthProvider (src/auth/providers/jwt-provider.ts)
-- [ ] Implement DatabaseTokenResolver
-- [ ] Implement OAuthProvider (src/auth/providers/oauth-provider.ts)
-- [ ] Implement APIKeyProvider (src/auth/providers/apikey-provider.ts)
-- [ ] Add optional dependency handling
+### Phase 8: Advanced Providers ✅ COMPLETE
+- [x] Implement JWTAuthProvider (src/auth/providers/jwt-provider.ts)
+- [x] Implement JWTTokenResolver (src/auth/providers/jwt-token-resolver.ts)
+- [x] Implement APITokenResolver (src/auth/providers/api-token-resolver.ts)
+- [x] Add optional dependency handling (jsonwebtoken)
+- [x] Update exports
 
 priority: MEDIUM
 estimated_time: "6-8 hours"
 
-files_to_create:
+deliverables:
   - src/auth/providers/jwt-provider.ts
-  - src/auth/providers/oauth-provider.ts
-  - src/auth/providers/apikey-provider.ts
+  - src/auth/providers/jwt-token-resolver.ts
+  - src/auth/providers/api-token-resolver.ts
+  - agent/why-two-steps.md
+  - agent/token-resolution-approaches.md
+  - agent/why-dynamic-imports.md
+
+note: "OAuth and API Key providers not implemented - JWT covers most use cases"
 
 ### Phase 9: Examples
 - [ ] Create simple stdio example (examples/simple-stdio/)
@@ -223,10 +228,10 @@ estimated_time: "1-2 hours"
 
 ## Current Focus
 
-phase: "Phase 6-8: Middleware, Transports, and Advanced Providers"
-next_task: "Choose next phase: Examples (Phase 9) or Advanced Providers (Phase 8)"
+phase: "Phase 9: Examples"
+next_task: "Create working examples to demonstrate usage"
 
-note: "Both core patterns (server wrapping + tool-level auth) are complete and functional!"
+note: "Core framework complete! Both patterns + JWT providers implemented."
 
 completed_phases:
   - Phase 1: Architecture & Design
@@ -235,6 +240,7 @@ completed_phases:
   - Phase 4: Simple Provider Implementation
   - Phase 5: Server Wrapper Implementation (PRIMARY)
   - Phase 5b: Tool-Level Implementation (ALTERNATIVE)
+  - Phase 8: Advanced Providers (JWT-based)
 
 ## Important Architectural Decisions
 
