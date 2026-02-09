@@ -94,8 +94,22 @@ export {
   type APITokenResolverConfig
 } from './auth/providers/index.js';
 
-// Note: OAuth and API Key providers can be added in the future if needed
-// For now, JWT-based auth with embedded or API-resolved tokens covers most use cases
+// ============================================================================
+// TENANT MANAGER INTEGRATION
+// ============================================================================
+// Standard interfaces for tenant manager APIs
+// Helps tenant platforms provide consistent APIs for MCP servers
+
+export {
+  type TenantAPIErrorResponse,
+  type CredentialsAPIResponse,
+  type CredentialsAPIHeaders,
+  type TenantManagerAPI,
+  TenantAPIStatusCode,
+  TenantAPIErrorCode,
+  createTenantAPIError,
+  TenantAPIErrors
+} from './tenant/index.js';
 
 // ============================================================================
 // SHARED: UTILITIES
