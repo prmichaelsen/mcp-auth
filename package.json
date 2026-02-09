@@ -85,7 +85,9 @@
   },
   "optionalDependencies": {
     "@types/jsonwebtoken": "^9.0.0",
-    "jsonwebtoken": "^9.0.0"
+    "jsonwebtoken": "^9.0.0",
+    "express": "^4.21.2",
+    "cors": "^2.8.5"
   },
   "publishConfig": {
     "access": "public"

@@ -1,6 +1,6 @@
 /**
  * Authenticated server wrapper implementation
- * 
+ *
  * Wraps MCP servers with authentication and multi-tenancy support.
  * Uses ephemeral instances by default for security.
  */
@@ -474,7 +474,8 @@ export class AuthenticatedServerWrapper {
       basePath: this.config.transport.basePath
     });
     
-    // Import express dynamically
+    // Import express dynamically (optional dependency)
+    // @ts-ignore - Dynamic import of optional dependency
     const express = await import('express');
     const app = express.default();
     
@@ -483,6 +484,7 @@ export class AuthenticatedServerWrapper {
     
     // Enable CORS if configured
     if (this.config.transport.cors) {
+      // @ts-ignore - Dynamic import of optional dependency
       const cors = await import('cors');
       app.use(cors.default({
         origin: this.config.transport.corsOrigin || '*'
