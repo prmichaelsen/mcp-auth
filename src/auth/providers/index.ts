@@ -3,13 +3,31 @@
  */
 
 // Environment-based provider
-export { 
+export {
   EnvAuthProvider,
-  type EnvAuthProviderConfig 
+  type EnvAuthProviderConfig
 } from './env-provider.js';
 
 // Simple token resolver
-export { 
+export {
   SimpleTokenResolver,
-  type SimpleTokenResolverConfig 
+  type SimpleTokenResolverConfig
 } from './simple-resolver.js';
+
+// JWT provider and resolver
+export {
+  JWTAuthProvider,
+  type JWTAuthProviderConfig,
+  type JWTPayload
+} from './jwt-provider.js';
+
+export {
+  JWTTokenResolver,
+  type JWTTokenResolverConfig
+} from './jwt-token-resolver.js';
+
+// API-based token resolver
+export {
+  APITokenResolver,
+  type APITokenResolverConfig
+} from './api-token-resolver.js';

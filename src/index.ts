@@ -84,14 +84,18 @@ export {
   EnvAuthProvider,
   type EnvAuthProviderConfig,
   SimpleTokenResolver,
-  type SimpleTokenResolverConfig
+  type SimpleTokenResolverConfig,
+  JWTAuthProvider,
+  type JWTAuthProviderConfig,
+  type JWTPayload,
+  JWTTokenResolver,
+  type JWTTokenResolverConfig,
+  APITokenResolver,
+  type APITokenResolverConfig
 } from './auth/providers/index.js';
 
-// Advanced Providers (to be implemented in Phase 8)
-// export { JWTAuthProvider } from './auth/providers/jwt-provider.js';
-// export { OAuthProvider } from './auth/providers/oauth-provider.js';
-// export { APIKeyProvider } from './auth/providers/apikey-provider.js';
-// export { DatabaseTokenResolver } from './auth/providers/database-resolver.js';
+// Note: OAuth and API Key providers can be added in the future if needed
+// For now, JWT-based auth with embedded or API-resolved tokens covers most use cases
 
 // ============================================================================
 // SHARED: UTILITIES

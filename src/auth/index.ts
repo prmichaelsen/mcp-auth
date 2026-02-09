@@ -19,5 +19,12 @@ export {
   EnvAuthProvider,
   type EnvAuthProviderConfig,
   SimpleTokenResolver,
-  type SimpleTokenResolverConfig
+  type SimpleTokenResolverConfig,
+  JWTAuthProvider,
+  type JWTAuthProviderConfig,
+  type JWTPayload,
+  JWTTokenResolver,
+  type JWTTokenResolverConfig,
+  APITokenResolver,
+  type APITokenResolverConfig
 } from './providers/index.js';
