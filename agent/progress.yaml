@@ -173,25 +173,23 @@ deliverables:
 
 note: "OAuth and API Key providers not implemented - JWT covers most use cases"
 
-### Phase 9: Examples
-- [ ] Create simple stdio example (examples/simple-stdio/)
-- [ ] Create server wrapping example (examples/wrapped-server/)
-- [ ] Create tool-level auth example (examples/tool-level-auth/)
-- [ ] Create hybrid example (examples/hybrid-server/)
-- [ ] Create JWT multi-tenant example (examples/jwt-multi-tenant/)
-- [ ] Create OAuth server example (examples/oauth-server/)
-- [ ] Add example READMEs
+### Phase 9: Examples 🚧 IN PROGRESS
+- [x] Create simple stdio example (examples/simple-stdio/)
+- [x] Create API-based token resolution example (examples/api-token-resolution/)
+- [x] Create mock server demonstrating MCP contract
+- [x] Add example READMEs
+- [ ] Create JWT-embedded token example
+- [ ] Create hybrid example (both patterns)
+- [ ] Test examples end-to-end
 
 priority: MEDIUM
 estimated_time: "6-8 hours"
 
-directories_to_create:
-  - examples/simple-stdio/
-  - examples/wrapped-server/
-  - examples/tool-level-auth/
-  - examples/hybrid-server/
-  - examples/jwt-multi-tenant/
-  - examples/oauth-server/
+deliverables:
+  - examples/simple-stdio/ (tool-level auth)
+  - examples/api-token-resolution/ (server wrapping - PRODUCTION)
+  - mock-server.ts (demonstrates MCP contract)
+  - README files for each example
 
 ### Phase 10: Testing & Documentation
 - [ ] Write unit tests for core types
@@ -228,19 +226,25 @@ estimated_time: "1-2 hours"
 
 ## Current Focus
 
-phase: "Phase 9: Examples"
-next_task: "Create working examples to demonstrate usage"
+phase: "Phase 9: Examples (Partial) / Phase 10: Testing"
+next_task: "Complete examples or begin testing"
 
-note: "Core framework complete! Both patterns + JWT providers implemented."
+note: "Framework is production-ready! Type definitions fixed, SSE routing fixed, examples started."
 
 completed_phases:
-  - Phase 1: Architecture & Design
-  - Phase 2: Project Bootstrap
-  - Phase 3: Core Implementation
-  - Phase 4: Simple Provider Implementation
-  - Phase 5: Server Wrapper Implementation (PRIMARY)
-  - Phase 5b: Tool-Level Implementation (ALTERNATIVE)
-  - Phase 8: Advanced Providers (JWT-based)
+  - Phase 1: Architecture & Design ✅
+  - Phase 2: Project Bootstrap ✅
+  - Phase 3: Core Implementation ✅
+  - Phase 4: Simple Provider Implementation ✅
+  - Phase 5: Server Wrapper Implementation ✅
+  - Phase 5b: Tool-Level Implementation ✅
+  - Phase 8: Advanced Providers (JWT-based) ✅
+  - Phase 9: Examples (Partial) 🚧
+
+recent_fixes:
+  - Fixed type definitions (removed composite: true) - 23 .d.ts files now generated
+  - Fixed SSE routing - added root endpoint (GET /mcp)
+  - Clarified API-based token resolution as recommended approach
 
 ## Important Architectural Decisions
 

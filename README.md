@@ -230,6 +230,11 @@ transport: {
 }
 ```
 
+**Endpoints created:**
+- `GET /mcp` - Server info and available endpoints
+- `POST /mcp/message` - MCP protocol messages (requires JWT)
+- `GET /mcp/health` - Health check endpoint
+
 ### HTTP (Remote)
 
 ```typescript
