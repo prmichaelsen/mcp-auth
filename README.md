@@ -6,42 +6,55 @@ Authentication and multi-tenancy framework for MCP (Model Context Protocol) serv
 
 `@prmichaelsen/mcp-auth` provides a pluggable authentication system for MCP servers, enabling:
 
+- **Zero modification**: Wrap existing MCP servers without code changes
 - **Multi-tenancy**: Multiple users with separate resource tokens
-- **Auth-agnostic**: Support for JWT, OAuth, API Keys, or custom auth schemes
+- **Auth-agnostic**: Support for JWT, environment variables, or custom auth schemes
 - **Transport-agnostic**: Works with stdio, HTTP, and SSE transports
 - **Type-safe**: Full TypeScript support
-- **Composable**: Middleware for rate limiting, logging, etc.
+- **Composable**: Middleware for rate limiting, logging, timeouts, retries
 
-## Installation
+## Two Patterns
 
-```bash
-npm install @prmichaelsen/mcp-auth @modelcontextprotocol/sdk
-```
+### Pattern 1: Server Wrapping (Recommended)
 
-## Quick Start
-
-### Simple Function-Based Tool
+Wrap existing MCP servers without modification:
 
 ```typescript
-import { withAuth, AuthenticatedMCPServer } from '@prmichaelsen/mcp-auth';
-import { EnvAuthProvider, SimpleTokenResolver } from '@prmichaelsen/mcp-auth/providers/env';
+import { wrapServer, JWTAuthProvider, JWTTokenResolver } from '@prmichaelsen/mcp-auth';
+import { createServer } from '@myorg/my-mcp-server';
 
-// Setup auth provider
-const authProvider = new EnvAuthProvider();
-const tokenResolver = new SimpleTokenResolver({ tokenEnvVar: 'API_TOKEN' });
+const authProvider = new JWTAuthProvider({
+  jwtSecret: process.env.JWT_SECRET,
+  extractTokens: true // Extract tokens from JWT payload
+});
 
-// Create server
-const server = new AuthenticatedMCPServer({
-  name: 'my-mcp-server',
+const wrapped = wrapServer({
+  serverFactory: createServer,
   authProvider,
-  tokenResolver,
+  tokenResolver: new JWTTokenResolver({ authProvider }),
+  resourceType: 'myapi',
+  transport: { type: 'sse', port: 3000 }
+});
+
+await wrapped.start();
+```
+
+### Pattern 2: Tool-Level Auth
+
+Build new servers with integrated authentication:
+
+```typescript
+import { AuthenticatedMCPServer, withAuth, EnvAuthProvider, SimpleTokenResolver } from '@prmichaelsen/mcp-auth';
+
+const server = new AuthenticatedMCPServer({
+  name: 'my-server',
+  authProvider: new EnvAuthProvider(),
+  tokenResolver: new SimpleTokenResolver({ tokenEnvVar: 'API_TOKEN' }),
   resourceType: 'myapi',
   transport: { type: 'stdio' }
 });
 
-// Register tool with automatic auth
 server.registerTool('get_data', withAuth(async (args, accessToken, userId) => {
-  // accessToken and userId are automatically injected
   const client = new MyAPIClient(accessToken);
   return client.getData(args);
 }));
@@ -49,77 +62,101 @@ server.registerTool('get_data', withAuth(async (args, accessToken, userId) => {
 await server.start();
 ```
 
-### Class-Based Tool
+## Installation
 
-```typescript
-import { Tool, AuthenticatedTool } from '@prmichaelsen/mcp-auth';
+```bash
+# Core package
+npm install @prmichaelsen/mcp-auth @modelcontextprotocol/sdk
 
-class GetDataTool implements Tool {
-  name = 'get_data';
-  description = 'Fetch data from API';
-  
-  async execute(args, accessToken, userId) {
-    const client = new MyAPIClient(accessToken);
-    return client.getData(args);
-  }
-}
+# For JWT support
+npm install jsonwebtoken
 
-server.registerTool(new AuthenticatedTool(new GetDataTool()));
+# For SSE/HTTP transports
+npm install express cors
 ```
 
 ## Authentication Providers
 
-### Environment Variable (Simple)
+### EnvAuthProvider (Single-User)
+
+For local development and single-user scenarios:
 
 ```typescript
-import { EnvAuthProvider, SimpleTokenResolver } from '@prmichaelsen/mcp-auth/providers/env';
+import { EnvAuthProvider, SimpleTokenResolver } from '@prmichaelsen/mcp-auth';
 
-const authProvider = new EnvAuthProvider();
-const tokenResolver = new SimpleTokenResolver({ tokenEnvVar: 'API_TOKEN' });
-```
+const authProvider = new EnvAuthProvider({
+  userIdEnvVar: 'MCP_USER_ID',
+  defaultUserId: 'local-user'
+});
 
-### JWT (Multi-tenant)
-
-```typescript
-import { JWTAuthProvider } from '@prmichaelsen/mcp-auth/providers/jwt';
-
-const authProvider = new JWTAuthProvider({
-  jwtSecret: process.env.JWT_SECRET,
-  database: {
-    host: 'localhost',
-    database: 'users'
-  }
+const tokenResolver = new SimpleTokenResolver({
+  tokenEnvVar: 'API_TOKEN'
 });
 ```
 
-### OAuth 2.0
+### JWTAuthProvider (Multi-Tenant)
+
+For production multi-tenant deployments with JWT-embedded tokens:
 
 ```typescript
-import { OAuthProvider } from '@prmichaelsen/mcp-auth/providers/oauth';
+import { JWTAuthProvider, JWTTokenResolver } from '@prmichaelsen/mcp-auth';
 
-const authProvider = new OAuthProvider({
-  authorizationUrl: 'https://auth.example.com/authorize',
-  tokenUrl: 'https://auth.example.com/token',
-  clientId: process.env.OAUTH_CLIENT_ID,
-  clientSecret: process.env.OAUTH_CLIENT_SECRET
+const authProvider = new JWTAuthProvider({
+  jwtSecret: process.env.JWT_SECRET,
+  extractTokens: true, // Extract tokens from JWT payload
+  userIdClaim: 'sub', // JWT claim containing user ID
+  tokensClaim: 'tokens' // JWT claim containing resource tokens
+});
+
+const tokenResolver = new JWTTokenResolver({ authProvider });
+```
+
+**JWT Structure:**
+```json
+{
+  "sub": "user-123",
+  "tokens": {
+    "instagram": "IGQVJXabc...",
+    "github": "ghp_abc123..."
+  },
+  "exp": 1234567890
+}
+```
+
+### APITokenResolver (API-Based)
+
+For resolving tokens via tenant manager API:
+
+```typescript
+import { JWTAuthProvider, APITokenResolver } from '@prmichaelsen/mcp-auth';
+
+const authProvider = new JWTAuthProvider({
+  jwtSecret: process.env.JWT_SECRET
+});
+
+const tokenResolver = new APITokenResolver({
+  tenantManagerUrl: 'https://tenant-manager.example.com',
+  serviceToken: process.env.SERVICE_TOKEN,
+  endpointPath: '/api/credentials/:userId/:resourceType'
 });
 ```
 
 ### Custom Provider
+
+Implement your own authentication logic:
 
 ```typescript
 import { AuthProvider, AuthResult, RequestContext } from '@prmichaelsen/mcp-auth';
 
 class CustomAuthProvider implements AuthProvider {
   async authenticate(context: RequestContext): Promise<AuthResult> {
-    // Your custom auth logic
     const apiKey = context.headers?.['x-api-key'];
     
     if (!apiKey) {
       return { authenticated: false, error: 'No API key' };
     }
     
-    // Validate and return user ID
+    // Your validation logic
     return {
       authenticated: true,
       userId: 'user-123'
@@ -131,11 +168,12 @@ class CustomAuthProvider implements AuthProvider {
 ## Middleware Composition
 
 ```typescript
-import { compose, withAuth, withRateLimit, withLogging } from '@prmichaelsen/mcp-auth';
+import { compose, withAuth, withRateLimit, withLogging, withTimeout } from '@prmichaelsen/mcp-auth';
 
 const getTool = compose(
-  withLogging(),
+  withLogging({ logArgs: true }),
   withRateLimit({ maxRequests: 100, windowMs: 60000 }),
+  withTimeout(5000),
   withAuth(),
   async (args, accessToken, userId) => {
     // Your tool logic
@@ -150,41 +188,121 @@ server.registerTool('get_data', getTool);
 ### Stdio (Local)
 
 ```typescript
-const server = new AuthenticatedMCPServer({
-  // ...
-  transport: { type: 'stdio' }
-});
+transport: { type: 'stdio' }
 ```
 
-### HTTP/SSE (Remote)
+### SSE (Remote Multi-Tenant)
 
 ```typescript
-const server = new AuthenticatedMCPServer({
-  // ...
-  transport: {
-    type: 'sse',
-    port: 3000,
-    host: '0.0.0.0',
-    basePath: '/mcp'
-  }
-});
+transport: {
+  type: 'sse',
+  port: 3000,
+  host: '0.0.0.0',
+  basePath: '/mcp',
+  cors: true
+}
 ```
+
+### HTTP (Remote)
+
+```typescript
+transport: {
+  type: 'http',
+  port: 3000,
+  host: '0.0.0.0'
+}
+```
+
+## MCP Server Contract
+
+To make your MCP server compatible with `wrapServer()`, export a factory function:
+
+```typescript
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+
+export function createServer(accessToken: string, userId?: string): Server {
+  const server = new Server({ name: 'my-server', version: '1.0.0' });
+  const client = new MyAPIClient(accessToken);
+  
+  // Register your tool handlers...
+  
+  return server;
+}
+```
+
+That's it! No mcp-auth imports needed in your server.
+
+## Architecture
+
+### Three-Tier Deployment
+
+1. **Chat Platform** - Sends MCP requests with JWT
+2. **Tenant Manager** - Issues JWTs, manages user credentials
+3. **MCP Server Instance** - Uses mcp-auth to wrap MCP servers
+
+### Token Resolution Approaches
+
+**Approach 1: JWT with Embedded Tokens** (Recommended)
+- Tenant manager includes resource tokens in JWT
+- Zero external calls
+- Fastest performance
+
+**Approach 2: API-Based Resolution**
+- Tenant manager provides API for token lookup
+- Better separation of concerns
+- Easier token rotation
+
+See [`agent/token-resolution-approaches.md`](./agent/token-resolution-approaches.md) for details.
 
 ## Documentation
 
-See the [`agent/`](./agent/) directory for detailed architecture documentation:
+Comprehensive architecture documentation in [`agent/`](./agent/):
 
-- [`multi-tenant-architecture.md`](./agent/multi-tenant-architecture.md) - Overall architecture and auth schemes
-- [`lib-structure.md`](./agent/lib-structure.md) - Package structure and design
-- [`tool-patterns.md`](./agent/tool-patterns.md) - Tool registration patterns
+- [`server-wrapping-pattern.md`](./agent/server-wrapping-pattern.md) - Server wrapping architecture
+- [`server-contract.md`](./agent/server-contract.md) - MCP server compatibility guide
+- [`dual-pattern-architecture.md`](./agent/dual-pattern-architecture.md) - Both patterns explained
+- [`token-resolution-approaches.md`](./agent/token-resolution-approaches.md) - Token resolution strategies
+- [`why-two-steps.md`](./agent/why-two-steps.md) - AuthProvider vs TokenResolver
+- [`INTEGRATION.md`](./INTEGRATION.md) - Integration guide for MCP server authors
 
 ## Examples
 
-See the [`examples/`](./examples/) directory for complete examples:
+Working examples coming soon in [`examples/`](./examples/):
 
 - `simple-stdio/` - Single-user stdio server
-- `jwt-multi-tenant/` - Multi-tenant JWT server
-- `oauth-server/` - OAuth authentication flow
+- `wrapped-server/` - Server wrapping with JWT
+- `tool-level-auth/` - Tool-level authentication
+- `jwt-multi-tenant/` - Multi-tenant JWT deployment
+
+## API Reference
+
+### Core Functions
+
+- `wrapServer(config)` - Wrap MCP server with authentication
+- `withAuth(handler)` - Add auth to function-based tools
+- `compose(...middlewares)` - Compose middleware functions
+
+### Classes
+
+- `AuthenticatedMCPServer` - MCP server with integrated auth
+- `AuthenticatedTool` - Wrapper for class-based tools
+- `BaseAuthProvider` - Base class for auth providers
+
+### Providers
+
+- `EnvAuthProvider` - Environment variable authentication
+- `SimpleTokenResolver` - Environment variable token resolution
+- `JWTAuthProvider` - JWT validation with token extraction
+- `JWTTokenResolver` - JWT-embedded token resolution
+- `APITokenResolver` - API-based token resolution
+
+### Middleware
+
+- `withAuth()` - Authentication
+- `withLogging()` - Request/response logging
+- `withRateLimit()` - Rate limiting per user
+- `withTimeout()` - Request timeout
+- `withRetry()` - Automatic retry on failure
 
 ## License
 
@@ -192,4 +310,4 @@ MIT
 
 ## Contributing
 
-Contributions welcome! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
+Contributions welcome! Please open an issue or PR on [GitHub](https://github.com/prmichaelsen/mcp-auth).
