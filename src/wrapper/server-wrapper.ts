@@ -493,6 +493,20 @@ export class AuthenticatedServerWrapper {
     
     const basePath = this.config.transport.basePath || '/mcp';
     
+    // Root endpoint info
+    app.get(basePath, (req: any, res: any) => {
+      res.json({
+        name: this.config.name,
+        version: this.config.version,
+        resourceType: this.config.resourceType,
+        endpoints: {
+          message: `POST ${basePath}/message`,
+          health: `GET ${basePath}/health`
+        },
+        documentation: 'https://github.com/prmichaelsen/mcp-auth'
+      });
+    });
+    
     // SSE endpoint for MCP messages
     app.post(`${basePath}/message`, async (req: any, res: any) => {
       try {
