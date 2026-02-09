@@ -15,23 +15,28 @@ Authentication and multi-tenancy framework for MCP (Model Context Protocol) serv
 
 ## Two Patterns
 
-### Pattern 1: Server Wrapping (Recommended)
+### Pattern 1: Server Wrapping (Recommended for Production)
 
 Wrap existing MCP servers without modification:
 
 ```typescript
-import { wrapServer, JWTAuthProvider, JWTTokenResolver } from '@prmichaelsen/mcp-auth';
+import { wrapServer, JWTAuthProvider, APITokenResolver } from '@prmichaelsen/mcp-auth';
 import { createServer } from '@myorg/my-mcp-server';
-
-const authProvider = new JWTAuthProvider({
-  jwtSecret: process.env.JWT_SECRET,
-  extractTokens: true // Extract tokens from JWT payload
-});
 
 const wrapped = wrapServer({
   serverFactory: createServer,
-  authProvider,
-  tokenResolver: new JWTTokenResolver({ authProvider }),
+  
+  // Validates JWT from tenant manager
+  authProvider: new JWTAuthProvider({
+    jwtSecret: process.env.JWT_SECRET
+  }),
+  
+  // Resolves tokens via tenant manager API (recommended)
+  tokenResolver: new APITokenResolver({
+    tenantManagerUrl: process.env.TENANT_MANAGER_URL,
+    serviceToken: process.env.SERVICE_TOKEN
+  }),
+  
   resourceType: 'myapi',
   transport: { type: 'sse', port: 3000 }
 });
@@ -94,34 +99,56 @@ const tokenResolver = new SimpleTokenResolver({
 });
 ```
 
-### JWTAuthProvider (Multi-Tenant)
+### JWTAuthProvider + APITokenResolver (Multi-Tenant Production) ⭐ RECOMMENDED
 
-For production multi-tenant deployments with JWT-embedded tokens:
+For production multi-tenant deployments:
+
+```typescript
+import { JWTAuthProvider, APITokenResolver } from '@prmichaelsen/mcp-auth';
+
+// Validates JWT tokens from tenant manager
+const authProvider = new JWTAuthProvider({
+  jwtSecret: process.env.JWT_SECRET,
+  userIdClaim: 'sub'
+});
+
+// Resolves tokens via tenant manager API
+const tokenResolver = new APITokenResolver({
+  tenantManagerUrl: 'https://tenant-manager.example.com',
+  serviceToken: process.env.SERVICE_TOKEN,
+  cacheTokens: true, // Cache for performance
+  cacheTtl: 300000 // 5 minutes
+});
+```
+
+**Why API-Based is Better:**
+- ✅ Automatic token refresh (no new JWT needed)
+- ✅ Immediate token revocation
+- ✅ Tokens not exposed in JWT
+- ✅ Small JWT size (~200 bytes)
+- ✅ Centralized token management
+
+### JWTAuthProvider + JWTTokenResolver (MVP/Prototyping)
+
+For quick setup with JWT-embedded tokens:
 
 ```typescript
 import { JWTAuthProvider, JWTTokenResolver } from '@prmichaelsen/mcp-auth';
 
 const authProvider = new JWTAuthProvider({
   jwtSecret: process.env.JWT_SECRET,
-  extractTokens: true, // Extract tokens from JWT payload
-  userIdClaim: 'sub', // JWT claim containing user ID
-  tokensClaim: 'tokens' // JWT claim containing resource tokens
+  extractTokens: true // Extract tokens from JWT
 });
 
 const tokenResolver = new JWTTokenResolver({ authProvider });
 ```
 
-**JWT Structure:**
-```json
-{
-  "sub": "user-123",
-  "tokens": {
-    "instagram": "IGQVJXabc...",
-    "github": "ghp_abc123..."
-  },
-  "exp": 1234567890
-}
-```
+**Trade-offs:**
+- ✅ Zero API calls (faster)
+- ✅ Simpler to implement
+- ❌ Token rotation requires new JWT
+- ❌ Larger JWT size
+- ❌ Tokens exposed in JWT payload
 
 ### APITokenResolver (API-Based)
 
