@@ -52,14 +52,16 @@ export interface CredentialsAPIResponse {
   expires_at?: string;
   
   /**
-   * Provider-specific user ID
+   * Provider-specific user ID (e.g., Instagram user ID, GitHub user ID)
+   * Note: Provider is already specified in the URL path
    */
-  provider_user_id?: string;
+  user_id?: string;
   
   /**
-   * Provider-specific username
+   * Provider-specific username (e.g., Instagram username, GitHub username)
+   * Note: Provider is already specified in the URL path
    */
-  provider_username?: string;
+  username?: string;
   
   /**
    * Additional provider-specific metadata
@@ -141,8 +143,8 @@ export interface TenantManagerAPI {
    * {
    *   "access_token": "IGQVJXabc...",
    *   "expires_at": "2026-12-31T23:59:59Z",
-   *   "provider_user_id": "17841400008460056",
-   *   "provider_username": "johndoe"
+   *   "user_id": "17841400008460056",
+   *   "username": "johndoe"
    * }
    * 
    * Response 404:
