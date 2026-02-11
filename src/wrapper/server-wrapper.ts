@@ -7,6 +7,7 @@
 
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { ServerWrapperConfig, NormalizedServerWrapperConfig } from './config.js';
 import type { RequestContext } from '../types.js';
 import { 
@@ -284,24 +285,115 @@ export class AuthenticatedServerWrapper {
       // 3. Get server instance (ephemeral or pooled)
       const server = await this.getServerInstance(userId, accessToken);
       
-      // 4. Forward request to server
-      // Note: This is a simplified version. Actual implementation would need
-      // to properly handle MCP protocol messages
+      // 4. Forward request to server via transport
       requestLogger.debug('Forwarding request to server instance', { userId });
       
-      // TODO: Implement actual MCP request forwarding
-      // For now, this is a placeholder
-      const response = { success: true, userId, resourceType: this.config.resourceType };
+      // Create a transport for this request
+      // The transport bridges our HTTP request to the MCP server
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: undefined // Stateless mode
+      });
+      
+      // Connect server to transport
+      await server.connect(transport);
+      
+      // Create mock Express-like req/res objects for the transport
+      const mockReq = {
+        body: request,
+        headers: context.headers || {}
+      };
+      
+      let responseData: any;
+      const mockRes = {
+        json: (data: any) => {
+          responseData = data;
+        },
+        status: (code: number) => ({
+          json: (data: any) => {
+            responseData = data;
+          }
+        }),
+        writeHead: () => mockRes,
+        write: () => {},
+        end: () => {},
+        on: () => {},
+        headersSent: false
+      };
+      
+      // Handle the request through the transport
+      await transport.handleRequest(mockReq as any, mockRes as any, request);
       
       requestLogger.info('Request handled successfully', {
         userId,
         resourceType: this.config.resourceType
       });
       
-      return response;
+      return responseData;
       
     } catch (error) {
       requestLogger.error('Request handling failed', error as Error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Handle SSE request with direct Express req/res access
+   * This allows us to use StreamableHTTPServerTransport properly
+   */
+  private async handleSSERequest(req: any, res: any, context: RequestContext): Promise<void> {
+    const requestLogger = this.logger.child({ requestId: context.requestId });
+    
+    try {
+      // 1. Authenticate
+      requestLogger.debug('Authenticating request');
+      const authResult = await this.config.authProvider.authenticate(context);
+      
+      if (!authResult.authenticated || !authResult.userId) {
+        requestLogger.warn('Authentication failed', { error: authResult.error });
+        throw new AuthenticationError(authResult.error || 'Authentication failed');
+      }
+      
+      const userId = validateUserId(authResult.userId);
+      requestLogger.debug('Authentication successful', { userId });
+      
+      // 2. Resolve resource token
+      const accessToken = await this.config.tokenResolver.resolveToken(
+        userId,
+        this.config.resourceType
+      );
+      
+      if (!accessToken) {
+        requestLogger.warn('Token resolution failed', { userId, resourceType: this.config.resourceType });
+        throw new TokenResolutionError(userId, this.config.resourceType);
+      }
+      
+      validateAccessToken(accessToken);
+      requestLogger.debug('Token resolved', { userId, resourceType: this.config.resourceType });
+      
+      // 3. Get server instance
+      const server = await this.getServerInstance(userId, accessToken);
+      
+      // 4. Forward request to server via StreamableHTTPServerTransport
+      requestLogger.debug('Forwarding request to MCP server', { userId });
+      
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: undefined // Stateless mode
+      });
+      
+      // Connect server to transport
+      await server.connect(transport);
+      
+      // Forward the request through the transport
+      // The transport handles JSON-RPC formatting
+      await transport.handleRequest(req, res, req.body);
+      
+      requestLogger.info('Request handled successfully', {
+        userId,
+        resourceType: this.config.resourceType
+      });
+      
+    } catch (error) {
+      requestLogger.error('SSE request handling failed', error as Error);
       throw error;
     }
   }
@@ -517,8 +609,8 @@ export class AuthenticatedServerWrapper {
           requestId: req.headers['x-request-id'] as string | undefined
         };
         
-        const result = await this.handleRequest(req.body, context);
-        res.json(result);
+        // Handle request and forward to MCP server via transport
+        await this.handleSSERequest(req, res, context);
         
       } catch (error) {
         this.logger.error('SSE request failed', error as Error);
