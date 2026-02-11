@@ -3,7 +3,7 @@
 project: "@prmichaelsen/mcp-auth"
 version: "0.1.0"
 status: "in_progress"
-last_updated: "2026-02-09"
+last_updated: "2026-02-11"
 
 ## Phases
 
@@ -245,6 +245,9 @@ recent_fixes:
   - Fixed type definitions (removed composite: true) - 23 .d.ts files now generated
   - Fixed SSE routing - added root endpoint (GET /mcp)
   - Clarified API-based token resolution as recommended approach
+  - Simplified CredentialsAPIResponse field names (provider_user_id → user_id, provider_username → username)
+  - Corrected JWT forwarding architecture documentation (single token approach)
+  - Successfully validated JWT forwarding in production (agentbase.me credentials API)
 
 ## Important Architectural Decisions
 
@@ -256,6 +259,12 @@ recent_fixes:
 
 - **MCP Platform Pattern**: Separate platform (auth/user mgmt) from integration servers
   * See: agent/mcp-platform-pattern.md
+
+- **JWT Forwarding**: Single token approach (JWT forwarded through entire flow)
+  * JWT secret shared but never transmitted
+  * MCP server forwards Authorization header to credentials API
+  * Simpler, more secure than separate service token
+  * Successfully validated in production (2026-02-11)
 
 ## Dependencies
 
@@ -281,13 +290,21 @@ internal:
 - Middleware composition for advanced scenarios (Pattern 2)
 - Servers can support both patterns simultaneously (hybrid approach)
 
+## Production Validation
+
+- **agentbase.me Integration**: Successfully integrated with agentbase-mcp-server
+  * JWT forwarding working correctly
+  * Credentials API fetching tokens successfully
+  * MCP tools operational
+  * Validated: 2026-02-11
+
 ## Quick Start for Next Session
 
 1. Run: `cd /home/prmichaelsen/mcp-auth && npm install`
 2. Read: `summary.md` for context
 3. Reference: `agent/lib-structure.md` for implementation details
-4. Start with: Phase 3 - Create `src/types.ts` and `src/auth/types.ts`
-5. Follow: The interface definitions in `agent/lib-structure.md`
+4. Check: `agent/progress.yaml` for latest status
+5. Review: Recent production validation notes
 
 ## Related Files
 
