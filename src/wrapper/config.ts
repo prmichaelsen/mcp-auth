@@ -66,16 +66,29 @@ export interface ServerWrapperConfig {
   authProvider: AuthProvider;
   
   /**
-   * Token resolver for resource-specific tokens
-   * 
+   * Token resolver for resource-specific tokens (optional for static servers)
+   *
    * Maps user ID to resource-specific access token (e.g., Instagram token).
-   * 
-   * @example
+   *
+   * If not provided, the server factory will receive an empty string as the
+   * accessToken parameter. This is useful for static servers that manage their
+   * own data and only need the userId from JWT validation.
+   *
+   * @example Dynamic server (with external credentials)
    * ```typescript
-   * tokenResolver: new DatabaseTokenResolver({ database: { ... } })
+   * tokenResolver: new APITokenResolver({
+   *   tenantManagerUrl: process.env.TENANT_MANAGER_URL,
+   *   serviceToken: process.env.SERVICE_TOKEN
+   * })
+   * ```
+   *
+   * @example Static server (no external credentials)
+   * ```typescript
+   * // tokenResolver omitted - static mode
+   * // serverFactory will receive empty string as accessToken
    * ```
    */
-  tokenResolver: ResourceTokenResolver;
+  tokenResolver?: ResourceTokenResolver;
   
   /**
    * Resource type identifier
@@ -167,7 +180,8 @@ export interface ServerWrapperConfig {
  * Validated and normalized server wrapper configuration
  * Used internally after validation
  */
-export interface NormalizedServerWrapperConfig extends Required<Omit<ServerWrapperConfig, 'middleware' | 'pooling'>> {
+export interface NormalizedServerWrapperConfig extends Required<Omit<ServerWrapperConfig, 'middleware' | 'pooling' | 'tokenResolver'>> {
+  tokenResolver: ResourceTokenResolver | null;
   middleware: MiddlewareConfig;
   pooling: {
     maxServersPerUser: number;

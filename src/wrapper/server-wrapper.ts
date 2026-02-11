@@ -97,9 +97,7 @@ export class AuthenticatedServerWrapper {
     if (!config.authProvider) {
       throw new ConfigurationError('authProvider is required');
     }
-    if (!config.tokenResolver) {
-      throw new ConfigurationError('tokenResolver is required');
-    }
+    // tokenResolver is now optional for static servers
     if (!config.resourceType) {
       throw new ConfigurationError('resourceType is required');
     }
@@ -109,6 +107,17 @@ export class AuthenticatedServerWrapper {
     
     validateResourceType(config.resourceType);
     validateTransportConfig(config.transport);
+    
+    // Log mode based on tokenResolver presence
+    if (config.tokenResolver) {
+      this.logger?.info('Token resolver configured - dynamic mode', {
+        resolverType: config.tokenResolver.constructor.name
+      });
+    } else {
+      this.logger?.info('No token resolver - static mode', {
+        note: 'Server factory will receive empty string as accessToken'
+      });
+    }
   }
   
   /**
@@ -118,7 +127,7 @@ export class AuthenticatedServerWrapper {
     return {
       serverFactory: config.serverFactory,
       authProvider: config.authProvider,
-      tokenResolver: config.tokenResolver,
+      tokenResolver: config.tokenResolver ?? null,  // Convert undefined to null
       resourceType: config.resourceType,
       transport: config.transport,
       name: config.name ?? 'mcp-auth-wrapped-server',
@@ -157,10 +166,14 @@ export class AuthenticatedServerWrapper {
       this.logger.debug('Auth provider initialized');
     }
     
-    // Initialize token resolver
-    if (this.config.tokenResolver.initialize) {
-      await this.config.tokenResolver.initialize();
-      this.logger.debug('Token resolver initialized');
+    // Initialize token resolver (if configured)
+    if (this.config.tokenResolver) {
+      if (this.config.tokenResolver.initialize) {
+        await this.config.tokenResolver.initialize();
+        this.logger.debug('Token resolver initialized');
+      }
+    } else {
+      this.logger.debug('Static mode - no token resolver to initialize');
     }
     
     // Start appropriate transport
@@ -222,10 +235,12 @@ export class AuthenticatedServerWrapper {
       this.logger.debug('Auth provider cleaned up');
     }
     
-    // Cleanup token resolver
-    if (this.config.tokenResolver.cleanup) {
-      await this.config.tokenResolver.cleanup();
-      this.logger.debug('Token resolver cleaned up');
+    // Cleanup token resolver (if configured)
+    if (this.config.tokenResolver) {
+      if (this.config.tokenResolver.cleanup) {
+        await this.config.tokenResolver.cleanup();
+        this.logger.debug('Token resolver cleaned up');
+      }
     }
     
     this.isRunning = false;
@@ -253,19 +268,29 @@ export class AuthenticatedServerWrapper {
       const userId = validateUserId(authResult.userId);
       requestLogger.debug('Authentication successful', { userId });
       
-      // 2. Resolve resource token
-      const accessToken = await this.config.tokenResolver.resolveToken(
-        userId,
-        this.config.resourceType
-      );
+      // 2. Resolve resource token (or use empty string for static mode)
+      let accessToken: string;
       
-      if (!accessToken) {
-        requestLogger.warn('Token resolution failed', { userId, resourceType: this.config.resourceType });
-        throw new TokenResolutionError(userId, this.config.resourceType);
+      if (this.config.tokenResolver) {
+        // Dynamic mode - resolve token from external source
+        const resolvedToken = await this.config.tokenResolver.resolveToken(
+          userId,
+          this.config.resourceType
+        );
+        
+        if (!resolvedToken) {
+          requestLogger.warn('Token resolution failed', { userId, resourceType: this.config.resourceType });
+          throw new TokenResolutionError(userId, this.config.resourceType);
+        }
+        
+        validateAccessToken(resolvedToken);
+        accessToken = resolvedToken;
+        requestLogger.debug('Token resolved', { userId, resourceType: this.config.resourceType });
+      } else {
+        // Static mode - no external token needed
+        accessToken = '';
+        requestLogger.debug('Static mode - no token resolution', { userId, mode: 'static' });
       }
-      
-      validateAccessToken(accessToken);
-      requestLogger.debug('Token resolved', { userId, resourceType: this.config.resourceType });
       
       // 3. Get server instance
       const server = await this.getServerInstance(userId, accessToken);
