@@ -270,7 +270,10 @@ export class AuthenticatedServerWrapper {
       // 3. Get server instance
       const server = await this.getServerInstance(userId, accessToken);
       
-      // 4. Forward request to server via StreamableHTTPServerTransport
+      // 4. Transform request to strip resource prefix from tool names
+      const transformedBody = this.transformRequest(req.body, requestLogger);
+      
+      // 5. Forward request to server via StreamableHTTPServerTransport
       requestLogger.debug('Forwarding request to MCP server', { userId });
       
       const transport = new StreamableHTTPServerTransport({
@@ -280,9 +283,9 @@ export class AuthenticatedServerWrapper {
       // Connect server to transport
       await server.connect(transport);
       
-      // Forward the request through the transport
+      // Forward the transformed request through the transport
       // The transport handles JSON-RPC formatting
-      await transport.handleRequest(req, res, req.body);
+      await transport.handleRequest(req, res, transformedBody);
       
       requestLogger.info('Request handled successfully', {
         userId,
@@ -293,6 +296,47 @@ export class AuthenticatedServerWrapper {
       requestLogger.error('SSE request handling failed', error as Error);
       throw error;
     }
+  }
+  
+  /**
+   * Transform JSON-RPC request to strip resource prefix from tool names
+   *
+   * Transforms: instagram_get_profile → get_profile
+   * This allows platforms to use prefixed names while MCP servers use simple names
+   */
+  private transformRequest(body: any, logger: Logger): any {
+    // Only transform tools/call requests
+    if (body?.method !== 'tools/call') {
+      return body;
+    }
+    
+    const toolName = body?.params?.name;
+    if (!toolName || typeof toolName !== 'string') {
+      return body;
+    }
+    
+    // Strip resource prefix if present
+    const prefix = `${this.config.resourceType}_`;
+    if (toolName.startsWith(prefix)) {
+      const strippedName = toolName.substring(prefix.length);
+      
+      logger.debug('Stripping tool name prefix', {
+        original: toolName,
+        stripped: strippedName,
+        prefix
+      });
+      
+      return {
+        ...body,
+        params: {
+          ...body.params,
+          name: strippedName
+        }
+      };
+    }
+    
+    // No transformation needed
+    return body;
   }
   
   /**
