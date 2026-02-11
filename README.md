@@ -150,6 +150,47 @@ const tokenResolver = new JWTTokenResolver({ authProvider });
 - ❌ Larger JWT size
 - ❌ Tokens exposed in JWT payload
 
+### JWTAuthProvider (Static Servers) ⭐ NEW
+
+For servers that manage their own data and only need user identification:
+
+```typescript
+import { wrapServer, JWTAuthProvider } from '@prmichaelsen/mcp-auth';
+
+const wrapped = wrapServer({
+  serverFactory: (accessToken, userId) => {
+    // accessToken will be empty string - use userId only
+    return createMyStaticServer(userId);
+  },
+  
+  authProvider: new JWTAuthProvider({
+    jwtSecret: process.env.JWT_SECRET
+  }),
+  
+  // No tokenResolver needed! ✨
+  
+  resourceType: 'my-service',
+  transport: {
+    type: 'sse',
+    port: 3000,
+    cors: true,
+    corsOrigin: process.env.CORS_ORIGIN
+  }
+});
+```
+
+**Perfect for:**
+- ✅ Multi-tenant SaaS with own database
+- ✅ User-scoped services
+- ✅ Internal tools without external APIs
+- ✅ Static data management servers
+
+**Benefits:**
+- ✅ Simplest configuration
+- ✅ No external credential management
+- ✅ JWT validation only (userId extraction)
+- ✅ Complete user isolation via ephemeral instances
+
 ### APITokenResolver (API-Based)
 
 For resolving tokens via tenant manager API:
