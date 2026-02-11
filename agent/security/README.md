@@ -23,19 +23,21 @@ This directory contains security audit reports for @prmichaelsen/mcp-auth.
 
 ### Critical Issues Tracker
 
-| Issue | Audit | Status | Priority | ETA |
-|-------|-------|--------|----------|-----|
-| CORS Wildcard Default | #001 | 🔴 OPEN | CRITICAL | Immediate |
+| Issue | Audit | Status | Priority | Resolution |
+|-------|-------|--------|----------|------------|
+| CORS Wildcard Default | #001 | ✅ RESOLVED | CRITICAL | v5.0.0 (2026-02-11) |
 | HTTPS Enforcement | #001 | ⚠️ OPEN | HIGH | Next Release |
 | esbuild Vulnerability | #001 | ⚠️ OPEN | MEDIUM | Next Release |
+| Default Rate Limiting | #001 | ⚠️ OPEN | HIGH | Next Release |
+| Health Endpoint Disclosure | #001 | ⚠️ OPEN | MEDIUM | Next Release |
 
 ### Security Metrics
 
 - **Total Audits**: 1
 - **Last Audit**: 2026-02-11
-- **Critical Issues**: 1 open
-- **High Priority Issues**: 2 open
-- **Medium Priority Issues**: 7 open
+- **Critical Issues**: 0 open (1 resolved)
+- **High Priority Issues**: 3 open
+- **Medium Priority Issues**: 2 open
 
 ---
 

@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.0.0] - 2026-02-11
+
+### Changed
+
+- Version bump to align with internal versioning
+- No functional changes from 5.0.0
+
+## [6.0.0] - 2026-02-11
+
+### Changed
+
+- Version bump (internal release)
+- No functional changes from 5.0.0
+
 ## [5.0.0] - 2026-02-11
 
 ### 🔒 Security
@@ -193,6 +207,8 @@ transport: {
 
 ---
 
+[7.0.0]: https://github.com/prmichaelsen/mcp-auth/compare/v6.0.0...v7.0.0
+[6.0.0]: https://github.com/prmichaelsen/mcp-auth/compare/v5.0.0...v6.0.0
 [5.0.0]: https://github.com/prmichaelsen/mcp-auth/compare/v4.0.0...v5.0.0
 [4.0.0]: https://github.com/prmichaelsen/mcp-auth/compare/v3.0.0...v4.0.0
 [3.0.0]: https://github.com/prmichaelsen/mcp-auth/compare/v2.0.0...v3.0.0
