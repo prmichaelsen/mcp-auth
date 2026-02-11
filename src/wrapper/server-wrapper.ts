@@ -474,11 +474,49 @@ export class AuthenticatedServerWrapper {
     
     // Enable CORS if configured
     if (this.config.transport.cors) {
+      // Validate CORS configuration
+      if (!this.config.transport.corsOrigin) {
+        throw new ConfigurationError(
+          'CORS origin must be explicitly configured when CORS is enabled. ' +
+          'Set transport.corsOrigin to a specific origin (e.g., "https://app.example.com") ' +
+          'or an array of allowed origins.'
+        );
+      }
+      
+      // Check for wildcard in production
+      if (this.config.transport.corsOrigin === '*') {
+        const isProduction = process.env.NODE_ENV === 'production';
+        
+        if (isProduction) {
+          throw new ConfigurationError(
+            'CORS wildcard (*) is not allowed in production environments. ' +
+            'Specify explicit origins to prevent CSRF attacks. ' +
+            'Example: corsOrigin: "https://app.example.com"'
+          );
+        }
+        
+        this.logger.warn(
+          'CORS wildcard (*) detected in development. ' +
+          'This is insecure and should never be used in production.',
+          { corsOrigin: this.config.transport.corsOrigin }
+        );
+      }
+      
       // @ts-ignore - Dynamic import of optional dependency
       const cors = await import('cors');
       app.use(cors.default({
-        origin: this.config.transport.corsOrigin || '*'
+        origin: this.config.transport.corsOrigin,
+        credentials: true,
+        methods: ['GET', 'POST', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
+        exposedHeaders: ['X-Request-ID'],
+        maxAge: 86400 // 24 hours
       }));
+      
+      this.logger.info('CORS enabled', {
+        origin: this.config.transport.corsOrigin,
+        credentials: true
+      });
     }
     
     const basePath = this.config.transport.basePath || '/mcp';

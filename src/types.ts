@@ -97,12 +97,38 @@ export interface TransportConfig {
   
   /**
    * Enable CORS for HTTP/SSE transports
+   *
+   * ⚠️ SECURITY WARNING: When enabling CORS, you MUST specify corsOrigin.
+   * Never use wildcard (*) in production environments.
+   *
    * @default false
    */
   cors?: boolean;
   
   /**
    * CORS origin configuration
+   *
+   * Specifies which origins are allowed to access the MCP server.
+   *
+   * ⚠️ SECURITY REQUIREMENTS:
+   * - REQUIRED when cors is enabled
+   * - Wildcard (*) is ONLY allowed in development (NODE_ENV !== 'production')
+   * - In production, specify explicit origins to prevent CSRF attacks
+   *
+   * @example Single origin
+   * ```typescript
+   * corsOrigin: 'https://app.example.com'
+   * ```
+   *
+   * @example Multiple origins
+   * ```typescript
+   * corsOrigin: ['https://app1.example.com', 'https://app2.example.com']
+   * ```
+   *
+   * @example Development only (INSECURE)
+   * ```typescript
+   * corsOrigin: '*'  // Only works when NODE_ENV !== 'production'
+   * ```
    */
   corsOrigin?: string | string[];
 }

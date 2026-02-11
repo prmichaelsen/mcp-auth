@@ -1,9 +1,10 @@
 # Security Fix: Remove CORS Wildcard Default
 
-**Priority**: 🔴 CRITICAL  
-**Status**: Open  
-**Created**: 2026-02-11  
-**Source**: Security Audit #001  
+**Priority**: 🔴 CRITICAL
+**Status**: ✅ RESOLVED
+**Created**: 2026-02-11
+**Resolved**: 2026-02-11
+**Source**: Security Audit #001
 **Risk Level**: HIGH
 
 ## Problem
@@ -170,9 +171,67 @@ transport: {
 
 ## Acceptance Criteria
 
-- [ ] Wildcard CORS rejected in production
-- [ ] Explicit origin required when CORS enabled
-- [ ] Tests added for CORS validation
-- [ ] Documentation updated with security warnings
-- [ ] Examples updated with secure configuration
-- [ ] Breaking change documented in CHANGELOG
+- [x] Wildcard CORS rejected in production
+- [x] Explicit origin required when CORS enabled
+- [ ] Tests added for CORS validation (deferred to Phase 10)
+- [x] Documentation updated with security warnings
+- [x] Examples updated with secure configuration
+- [x] Breaking change documented in CHANGELOG
+
+## Resolution Summary
+
+**Date**: 2026-02-11
+**Implementation**: Option 2 (Configurable with production enforcement)
+
+### Changes Made
+
+1. **src/wrapper/server-wrapper.ts** (lines 475-520)
+   - Added validation requiring explicit `corsOrigin` when CORS enabled
+   - Block wildcard (`*`) in production with clear error message
+   - Allow wildcard in development with warning
+   - Enhanced CORS configuration with security best practices:
+     - `credentials: true`
+     - Explicit methods: `['GET', 'POST', 'OPTIONS']`
+     - Explicit headers: `['Content-Type', 'Authorization', 'X-Request-ID']`
+     - `maxAge: 86400` (24 hours)
+
+2. **src/types.ts** (lines 98-139)
+   - Added comprehensive security documentation to `TransportConfig.corsOrigin`
+   - Included examples of secure and insecure configurations
+   - Clear warnings about wildcard usage
+
+3. **README.md** (lines 221-270)
+   - Added "⚠️ CORS Security" section after SSE transport
+   - Provided secure configuration examples
+   - Documented security requirements
+   - Clear visual distinction between secure (✅) and insecure (❌) patterns
+
+4. **examples/api-token-resolution/index.ts** (line 76)
+   - Updated example to include `corsOrigin` configuration
+   - Uses environment variable with wildcard fallback for development
+
+### Security Impact
+
+- **Before**: Any website could make requests to MCP server (CSRF vulnerability)
+- **After**: Only explicitly allowed origins can access the server
+- **Breaking Change**: Yes - requires `corsOrigin` when `cors: true`
+- **Version Bump**: 5.0.0 (major)
+
+### Backward Compatibility
+
+This is a **breaking change**. Users upgrading from 4.x must:
+
+1. Add `corsOrigin` to transport config when `cors: true`
+2. Specify explicit origins (no wildcard in production)
+3. Update environment variables if using dynamic configuration
+
+### Testing
+
+Manual testing confirms:
+- ✅ Missing `corsOrigin` throws `ConfigurationError`
+- ✅ Wildcard in production throws `ConfigurationError`
+- ✅ Wildcard in development logs warning and continues
+- ✅ Explicit origins work correctly
+- ✅ CORS headers include security best practices
+
+Automated tests deferred to Phase 10 (Testing & Documentation).

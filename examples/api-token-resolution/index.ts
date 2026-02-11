@@ -71,7 +71,9 @@ const wrapped = wrapServer({
     port: 3000,
     host: '0.0.0.0',
     basePath: '/mcp',
-    cors: true
+    cors: true,
+    // SECURITY: Specify explicit CORS origin (required in production)
+    corsOrigin: process.env.CORS_ORIGIN || '*' // Wildcard only works in development
   },
   
   // Use ephemeral instances (recommended for security)

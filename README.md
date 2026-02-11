@@ -226,7 +226,8 @@ transport: {
   port: 3000,
   host: '0.0.0.0',
   basePath: '/mcp',
-  cors: true
+  cors: true,
+  corsOrigin: 'https://your-app.example.com'  // REQUIRED when cors: true
 }
 ```
 
@@ -234,6 +235,45 @@ transport: {
 - `GET /mcp` - Server info and available endpoints
 - `POST /mcp/message` - MCP protocol messages (requires JWT)
 - `GET /mcp/health` - Health check endpoint
+
+#### ⚠️ CORS Security
+
+When enabling CORS, you **MUST** specify `corsOrigin` with explicit origins:
+
+```typescript
+// ✅ SECURE - Single origin
+transport: {
+  type: 'sse',
+  cors: true,
+  corsOrigin: 'https://app.example.com'
+}
+
+// ✅ SECURE - Multiple origins
+transport: {
+  type: 'sse',
+  cors: true,
+  corsOrigin: ['https://app1.example.com', 'https://app2.example.com']
+}
+
+// ❌ INSECURE - Wildcard blocked in production
+transport: {
+  type: 'sse',
+  cors: true,
+  corsOrigin: '*'  // ConfigurationError in production!
+}
+
+// ❌ INSECURE - Missing corsOrigin
+transport: {
+  type: 'sse',
+  cors: true  // ConfigurationError: corsOrigin required!
+}
+```
+
+**Security Requirements:**
+- `corsOrigin` is **REQUIRED** when `cors: true`
+- Wildcard (`*`) is **ONLY** allowed in development (`NODE_ENV !== 'production'`)
+- In production, wildcard throws `ConfigurationError` to prevent CSRF attacks
+- Use specific origins to ensure only your applications can access the MCP server
 
 ### HTTP (Remote)
 
