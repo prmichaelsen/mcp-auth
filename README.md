@@ -417,6 +417,24 @@ Working examples coming soon in [`examples/`](./examples/):
 - `withTimeout()` - Request timeout
 - `withRetry()` - Automatic retry on failure
 
+## Example Projects
+
+Real-world projects using `@prmichaelsen/mcp-auth`:
+
+### [@prmichaelsen/agentbase-mcp-server](https://github.com/prmichaelsen/agentbase-mcp-server)
+Multi-tenant Instagram MCP server with Firebase authentication
+- **Pattern**: Server Wrapping (Dynamic Mode)
+- **Auth**: JWT + API-based token resolution
+- **Use Case**: External API credentials (Instagram)
+- **Transport**: SSE over HTTP
+
+### [@prmichaelsen/remember-mcp-server](https://github.com/prmichaelsen/remember-mcp-server)
+Multi-tenant MCP server for remember-mcp with Platform JWT authentication
+- **Pattern**: Server Wrapping (Static Mode)
+- **Auth**: JWT only (no tokenResolver)
+- **Use Case**: User-scoped data in own database
+- **Transport**: SSE over HTTP
+
 ## License
 
 MIT
