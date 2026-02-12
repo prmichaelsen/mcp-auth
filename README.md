@@ -422,7 +422,7 @@ Working examples coming soon in [`examples/`](./examples/):
 Real-world projects using `@prmichaelsen/mcp-auth`:
 
 ### [@prmichaelsen/agentbase-mcp-server](https://github.com/prmichaelsen/agentbase-mcp-server)
-Multi-tenant Instagram MCP server with Firebase authentication
+Multi-tenant Instagram MCP server with JWT authentication
 - **Pattern**: Server Wrapping (Dynamic Mode)
 - **Auth**: JWT + API-based token resolution
 - **Use Case**: External API credentials (Instagram)
