@@ -1,0 +1,27 @@
+{
+  "name": "jwt-dynamic-example",
+  "version": "1.0.0",
+  "description": "Complete three-tier JWT authentication example for mcp-auth",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "tenant-manager",
+    "instagram-mcp",
+    "mcp-server",
+    "mock-instagram"
+  ],
+  "scripts": {
+    "install:all": "npm install",
+    "build": "npm run build --workspaces --if-present",
+    "dev": "concurrently -n tenant,mock,mcp \"npm run dev -w tenant-manager\" \"npm run dev -w mock-instagram\" \"npm run dev -w mcp-server\"",
+    "start": "concurrently -n tenant,mock,mcp \"npm start -w tenant-manager\" \"npm start -w mock-instagram\" \"npm start -w mcp-server\"",
+    "clean": "npm run clean --workspaces --if-present && rm -rf node_modules",
+    "test": "node scripts/test.js"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
