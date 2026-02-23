@@ -1,6 +1,6 @@
 /**
  * Core type definitions for @prmichaelsen/mcp-auth
- * 
+ *
  * These types are used throughout the framework for authentication,
  * request handling, and server configuration.
  */
@@ -9,6 +9,48 @@
  * Transport types supported by the framework
  */
 export type TransportType = 'stdio' | 'sse' | 'http';
+
+/**
+ * Progress notification parameters
+ * Used for streaming progress updates during long-running operations
+ */
+export interface ProgressNotification {
+  /**
+   * Unique token identifying this progress stream
+   */
+  progressToken: string | number;
+  
+  /**
+   * Current progress value (optional)
+   */
+  progress?: number;
+  
+  /**
+   * Total expected value (optional)
+   */
+  total?: number;
+  
+  /**
+   * Progress message/description (optional)
+   */
+  message?: string;
+}
+
+/**
+ * Request extra parameters (from MCP SDK)
+ * Contains optional metadata passed with requests
+ */
+export interface RequestExtra {
+  /**
+   * Progress token for streaming progress notifications
+   */
+  progressToken?: string | number;
+  
+  /**
+   * Additional custom parameters
+   */
+  [key: string]: any;
+}
 
 /**
  * Request context passed to authentication providers

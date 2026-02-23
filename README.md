@@ -326,6 +326,86 @@ transport: {
 }
 ```
 
+## Progress Streaming
+
+mcp-auth supports MCP progress notifications, allowing wrapped servers to stream progress updates to clients during long-running operations.
+
+### How It Works
+
+When a client provides a `progressToken` in the request, mcp-auth automatically:
+1. Extracts the progress token from the request
+2. Passes it through to the wrapped MCP server
+3. The wrapped server can send progress notifications back to the client
+4. Progress is isolated per user (multi-tenant safe)
+
+### Client-Side Usage
+
+```typescript
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+
+const client = new Client({
+  name: 'my-client',
+  version: '1.0.0'
+});
+
+// Call tool with progress support
+const result = await client.request({
+  method: 'tools/call',
+  params: {
+    name: 'long_running_operation',
+    arguments: { /* ... */ }
+  }
+}, {
+  progressToken: 'operation-123',
+  onprogress: (progress) => {
+    console.log(`Progress: ${progress.progress}/${progress.total}`);
+    console.log(`Message: ${progress.message}`);
+  }
+});
+```
+
+### Server-Side Implementation
+
+Wrapped MCP servers can send progress notifications:
+
+```typescript
+// In your MCP server tool handler
+export async function handleLongOperation(
+  args: any,
+  extra?: { progressToken?: string | number }
+): Promise<any> {
+  const progressToken = extra?.progressToken;
+  
+  if (progressToken) {
+    // Send progress notifications
+    server.notification({
+      method: 'notifications/progress',
+      params: {
+        progressToken,
+        progress: 50,
+        total: 100,
+        message: 'Processing...'
+      }
+    });
+  }
+  
+  // ... perform operation
+}
+```
+
+### Features
+
+- ✅ **Automatic Pass-Through**: Progress tokens automatically forwarded to wrapped servers
+- ✅ **Multi-Tenant Safe**: Progress notifications isolated per user
+- ✅ **Backward Compatible**: Works with or without progress token (graceful degradation)
+- ✅ **Zero Configuration**: No additional setup required
+
+### Notes
+
+- Progress streaming requires SSE or HTTP transport (not available with stdio)
+- Progress tokens are automatically cleaned up after request completion
+- Wrapped servers must implement progress notification support to send updates
+
 ## MCP Server Contract
 
 To make your MCP server compatible with `wrapServer()`, export a factory function:

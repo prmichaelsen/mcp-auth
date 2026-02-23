@@ -64,6 +64,7 @@ export class AuthenticatedServerWrapper {
   private serverPool: Map<string, ServerInstance>;
   private isRunning: boolean = false;
   private cleanupTimer?: NodeJS.Timeout;
+  private progressContexts: Map<string, string | number> = new Map();
   
   constructor(config: ServerWrapperConfig) {
     // Validate configuration
@@ -249,11 +250,36 @@ export class AuthenticatedServerWrapper {
   }
   
   /**
+   * Store progress context for a user
+   */
+  private storeProgressContext(userId: string, progressToken: string | number): void {
+    this.progressContexts.set(userId, progressToken);
+    this.logger.debug('Stored progress context', { userId, progressToken });
+  }
+  
+  /**
+   * Get progress context for a user
+   */
+  private getProgressContext(userId: string): string | number | undefined {
+    return this.progressContexts.get(userId);
+  }
+  
+  /**
+   * Clear progress context for a user
+   */
+  private clearProgressContext(userId: string): void {
+    this.progressContexts.delete(userId);
+    this.logger.debug('Cleared progress context', { userId });
+  }
+  
+  /**
    * Handle SSE request with direct Express req/res access
    * This allows us to use StreamableHTTPServerTransport properly
    */
   private async handleSSERequest(req: any, res: any, context: RequestContext): Promise<void> {
     const requestLogger = this.logger.child({ requestId: context.requestId });
+    let userId: string | undefined;
+    const progressToken = req.body._meta?.progressToken;
     
     try {
       // 1. Authenticate
@@ -265,7 +291,7 @@ export class AuthenticatedServerWrapper {
         throw new AuthenticationError(authResult.error || 'Authentication failed');
       }
       
-      const userId = validateUserId(authResult.userId);
+      userId = validateUserId(authResult.userId);
       requestLogger.debug('Authentication successful', { userId });
       
       // 2. Resolve resource token (or use empty string for static mode)
@@ -292,11 +318,17 @@ export class AuthenticatedServerWrapper {
         requestLogger.debug('Static mode - no token resolution', { userId, mode: 'static' });
       }
       
-      // 3. Get server instance
+      // 3. Store progress token if provided
+      if (progressToken) {
+        this.storeProgressContext(userId, progressToken);
+        requestLogger.debug('Progress token extracted', { userId, progressToken });
+      }
+      
+      // 4. Get server instance
       const server = await this.getServerInstance(userId, accessToken);
       
-      // 4. Forward request to server via StreamableHTTPServerTransport
-      requestLogger.debug('Forwarding request to MCP server', { userId });
+      // 5. Forward request to server via StreamableHTTPServerTransport
+      requestLogger.debug('Forwarding request to MCP server', { userId, hasProgressToken: !!progressToken });
       
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined // Stateless mode
@@ -312,11 +344,23 @@ export class AuthenticatedServerWrapper {
       
       requestLogger.info('Request handled successfully', {
         userId,
-        resourceType: this.config.resourceType
+        resourceType: this.config.resourceType,
+        hadProgressToken: !!progressToken
       });
+      
+      // Clean up progress context after request completes
+      if (progressToken) {
+        this.clearProgressContext(userId);
+      }
       
     } catch (error) {
       requestLogger.error('SSE request handling failed', error as Error);
+      
+      // Clean up progress context on error
+      if (progressToken && userId) {
+        this.clearProgressContext(userId);
+      }
+      
       throw error;
     }
   }
