@@ -695,6 +695,89 @@ export class AuthenticatedServerWrapper {
       }
     });
     
+    // Progress monitoring endpoint (authenticated)
+    app.get(`${basePath}/progress/stats`, async (req: any, res: any) => {
+      try {
+        // Authenticate request
+        const context: RequestContext = {
+          headers: req.headers as Record<string, string>,
+          transport: 'sse',
+          timestamp: new Date(),
+          requestId: req.headers['x-request-id'] as string | undefined
+        };
+        
+        const authResult = await this.config.authProvider.authenticate(context);
+        
+        if (!authResult.authenticated || !authResult.userId) {
+          return res.status(401).json({
+            error: 'Authentication required',
+            code: 'AUTHENTICATION_ERROR'
+          });
+        }
+        
+        const userId = authResult.userId;
+        
+        // Get user-specific metrics
+        const userMetrics = this.progressManager.getUserMetrics(userId);
+        const globalStats = this.progressManager.getStats();
+        
+        res.json({
+          user: {
+            userId,
+            ...userMetrics
+          },
+          global: globalStats,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        this.logger.error('Error fetching progress stats', error as Error);
+        res.status(500).json({
+          error: 'Internal server error',
+          code: 'INTERNAL_ERROR'
+        });
+      }
+    });
+    
+    // Detailed metrics endpoint (authenticated)
+    app.get(`${basePath}/progress/metrics`, async (req: any, res: any) => {
+      try {
+        // Authenticate request
+        const context: RequestContext = {
+          headers: req.headers as Record<string, string>,
+          transport: 'sse',
+          timestamp: new Date(),
+          requestId: req.headers['x-request-id'] as string | undefined
+        };
+        
+        const authResult = await this.config.authProvider.authenticate(context);
+        
+        if (!authResult.authenticated) {
+          return res.status(401).json({
+            error: 'Authentication required',
+            code: 'AUTHENTICATION_ERROR'
+          });
+        }
+        
+        // Get all metrics (could add admin check here)
+        const allMetrics = this.progressManager.getAllMetrics();
+        const health = this.progressManager.checkHealth();
+        
+        res.json({
+          metrics: allMetrics,
+          health,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        this.logger.error('Error fetching progress metrics', error as Error);
+        res.status(500).json({
+          error: 'Internal server error',
+          code: 'INTERNAL_ERROR'
+        });
+      }
+    });
+    
     // Health check endpoint
     app.get(`${basePath}/health`, (req: any, res: any) => {
       res.json({

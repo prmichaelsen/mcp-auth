@@ -211,4 +211,143 @@ export class ProgressManager {
       userCount: userIds.size
     };
   }
+  
+  /**
+   * Get detailed metrics for a specific stream
+   */
+  getStreamMetrics(progressToken: string | number): ProgressStreamMetrics | null {
+    const stream = this.streams.get(progressToken);
+    if (!stream) return null;
+    
+    const now = Date.now();
+    const duration = now - stream.startTime;
+    const messagesPerSecond = duration > 0 ? stream.messageCount / (duration / 1000) : 0;
+    
+    return {
+      userId: stream.userId,
+      progressToken: stream.progressToken,
+      startTime: stream.startTime,
+      lastUpdate: stream.lastUpdate,
+      duration,
+      messageCount: stream.messageCount,
+      bytesTransferred: stream.bytesTransferred || 0,
+      averageMessageSize: stream.bytesTransferred && stream.messageCount > 0
+        ? stream.bytesTransferred / stream.messageCount
+        : 0,
+      messagesPerSecond
+    };
+  }
+  
+  /**
+   * Get metrics for all active streams
+   */
+  getAllMetrics(): ProgressStreamMetrics[] {
+    const metrics: ProgressStreamMetrics[] = [];
+    
+    for (const token of this.streams.keys()) {
+      const metric = this.getStreamMetrics(token);
+      if (metric) {
+        metrics.push(metric);
+      }
+    }
+    
+    return metrics;
+  }
+  
+  /**
+   * Get aggregated metrics by user
+   */
+  getUserMetrics(userId: string): {
+    activeStreams: number;
+    totalMessages: number;
+    totalBytes: number;
+    oldestStreamAge: number;
+  } {
+    const streams = this.getUserStreams(userId);
+    const now = Date.now();
+    
+    let totalMessages = 0;
+    let totalBytes = 0;
+    let oldestStreamAge = 0;
+    
+    for (const stream of streams) {
+      totalMessages += stream.messageCount;
+      totalBytes += stream.bytesTransferred || 0;
+      const age = now - stream.startTime;
+      if (age > oldestStreamAge) {
+        oldestStreamAge = age;
+      }
+    }
+    
+    return {
+      activeStreams: streams.length,
+      totalMessages,
+      totalBytes,
+      oldestStreamAge
+    };
+  }
+  
+  /**
+   * Check health of all active streams
+   */
+  checkHealth(): {
+    healthy: boolean;
+    issues: string[];
+    warnings: string[];
+  } {
+    const issues: string[] = [];
+    const warnings: string[] = [];
+    const now = Date.now();
+    
+    for (const [token, stream] of this.streams.entries()) {
+      const age = now - stream.startTime;
+      const timeSinceUpdate = now - stream.lastUpdate;
+      
+      // Check for very old streams (>1 hour)
+      if (age > 3600000) {
+        warnings.push(
+          `Stream ${token} for user ${stream.userId} is very old (${Math.floor(age / 60000)} minutes)`
+        );
+      }
+      
+      // Check for stale streams (>5 minutes since update)
+      if (timeSinceUpdate > 300000) {
+        issues.push(
+          `Stream ${token} for user ${stream.userId} is stale (${Math.floor(timeSinceUpdate / 60000)} minutes since update)`
+        );
+      }
+      
+      // Check for high message rate (>100/sec)
+      const duration = age / 1000;
+      if (duration > 0) {
+        const rate = stream.messageCount / duration;
+        if (rate > 100) {
+          warnings.push(
+            `Stream ${token} has high message rate (${rate.toFixed(1)}/sec)`
+          );
+        }
+      }
+    }
+    
+    return {
+      healthy: issues.length === 0,
+      issues,
+      warnings
+    };
+  }
+}
+
+/**
+ * Detailed progress stream metrics
+ */
+export interface ProgressStreamMetrics {
+  userId: string;
+  progressToken: string | number;
+  startTime: number;
+  lastUpdate: number;
+  duration: number;
+  messageCount: number;
+  bytesTransferred: number;
+  averageMessageSize: number;
+  messagesPerSecond: number;
 }

@@ -400,11 +400,80 @@ export async function handleLongOperation(
 - ✅ **Backward Compatible**: Works with or without progress token (graceful degradation)
 - ✅ **Zero Configuration**: No additional setup required
 
+### Monitoring
+
+Monitor active progress streams via authenticated endpoints:
+
+**User Stats** (shows your own progress streams):
+```bash
+GET /mcp/progress/stats
+Authorization: Bearer <jwt>
+```
+
+**Response**:
+```json
+{
+  "user": {
+    "userId": "user123",
+    "activeStreams": 2,
+    "totalMessages": 1543,
+    "totalBytes": 45231,
+    "oldestStreamAge": 120000
+  },
+  "global": {
+    "activeStreams": 15,
+    "totalMessages": 8234,
+    "userCount": 8
+  },
+  "timestamp": "2026-02-23T21:00:00.000Z"
+}
+```
+
+**All Metrics** (detailed stream information):
+```bash
+GET /mcp/progress/metrics
+Authorization: Bearer <jwt>
+```
+
+**Response**:
+```json
+{
+  "metrics": [
+    {
+      "userId": "user123",
+      "progressToken": "op-456",
+      "startTime": 1708725600000,
+      "lastUpdate": 1708725650000,
+      "duration": 50000,
+      "messageCount": 125,
+      "bytesTransferred": 45231,
+      "averageMessageSize": 361.8,
+      "messagesPerSecond": 2.5
+    }
+  ],
+  "health": {
+    "healthy": true,
+    "issues": [],
+    "warnings": []
+  },
+  "timestamp": "2026-02-23T21:00:00.000Z"
+}
+```
+
+### Performance
+
+- **Memory**: ~1KB per active stream
+- **Network**: ~100-500 bytes per progress notification
+- **CPU**: <1% overhead for typical workloads
+- **Cleanup**: Stale streams (>5 minutes idle) automatically removed every minute
+
 ### Notes
 
 - Progress streaming requires SSE or HTTP transport (not available with stdio)
 - Progress tokens are automatically cleaned up after request completion
 - Wrapped servers must implement progress notification support to send updates
+- Health checks detect stale streams and high message rates
+- Monitoring endpoints require authentication
 
 ## MCP Server Contract
 

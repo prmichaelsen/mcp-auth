@@ -23,7 +23,8 @@ export {
   type MCPServerFactory,
   type NormalizedServerWrapperConfig,
   ProgressManager,
-  type ProgressCallback
+  type ProgressCallback,
+  type ProgressStreamMetrics
 } from './wrapper/index.js';
 
 // ============================================================================

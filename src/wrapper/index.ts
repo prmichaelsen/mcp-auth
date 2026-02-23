@@ -9,5 +9,5 @@ export type { ServerWrapperConfig, NormalizedServerWrapperConfig, MCPServerFacto
 /**
  * Progress manager exports
  */
-export { ProgressManager } from './progress-manager.js';
+export { ProgressManager, type ProgressStreamMetrics } from './progress-manager.js';
 export type { ProgressCallback } from './progress-manager.js';
