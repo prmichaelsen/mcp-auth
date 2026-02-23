@@ -21,7 +21,9 @@ export {
   AuthenticatedServerWrapper,
   type ServerWrapperConfig,
   type MCPServerFactory,
-  type NormalizedServerWrapperConfig
+  type NormalizedServerWrapperConfig,
+  ProgressManager,
+  type ProgressCallback
 } from './wrapper/index.js';
 
 // ============================================================================
@@ -62,7 +64,9 @@ export type {
   Result,
   AsyncFunction,
   ToolHandler,
-  Middleware
+  Middleware,
+  ProgressNotification,
+  RequestExtra
 } from './types.js';
 
 // ============================================================================

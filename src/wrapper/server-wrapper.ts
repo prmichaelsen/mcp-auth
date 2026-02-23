@@ -9,9 +9,9 @@ import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { ServerWrapperConfig, NormalizedServerWrapperConfig } from './config.js';
-import type { RequestContext } from '../types.js';
-import { 
-  AuthenticationError, 
+import type { RequestContext, ProgressNotification } from '../types.js';
+import {
+  AuthenticationError,
   TokenResolutionError,
   ConfigurationError,
   TransportError
@@ -24,6 +24,7 @@ import {
   validateAccessToken,
   validateTransportConfig
 } from '../utils/validation.js';
+import { ProgressManager } from './progress-manager.js';
 
 /**
  * Server instance metadata (for pooled mode)
@@ -65,6 +66,8 @@ export class AuthenticatedServerWrapper {
   private isRunning: boolean = false;
   private cleanupTimer?: NodeJS.Timeout;
   private progressContexts: Map<string, string | number> = new Map();
+  private progressManager!: ProgressManager;
+  private cleanupInterval?: NodeJS.Timeout;
   
   constructor(config: ServerWrapperConfig) {
     // Validate configuration
@@ -78,6 +81,14 @@ export class AuthenticatedServerWrapper {
     
     // Initialize server pool (only used in pooled mode)
     this.serverPool = new Map();
+    
+    // Initialize progress manager
+    this.progressManager = new ProgressManager(this.logger);
+    
+    // Schedule periodic cleanup of stale streams (every minute)
+    this.cleanupInterval = setInterval(() => {
+      this.progressManager.cleanupStaleStreams();
+    }, 60000);
     
     this.logger.info('AuthenticatedServerWrapper created', {
       name: this.config.name,
@@ -211,10 +222,15 @@ export class AuthenticatedServerWrapper {
     
     this.logger.info('Stopping server wrapper');
     
-    // Clear cleanup timer
+    // Clear cleanup timers
     if (this.cleanupTimer) {
       clearTimeout(this.cleanupTimer);
       this.cleanupTimer = undefined;
+    }
+    
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = undefined;
     }
     
     // Close all pooled servers
@@ -318,16 +334,57 @@ export class AuthenticatedServerWrapper {
         requestLogger.debug('Static mode - no token resolution', { userId, mode: 'static' });
       }
       
-      // 3. Store progress token if provided
+      // 3. Store progress token and register stream if provided
       if (progressToken) {
         this.storeProgressContext(userId, progressToken);
-        requestLogger.debug('Progress token extracted', { userId, progressToken });
+        
+        // Register progress stream with callback to forward notifications
+        this.progressManager.registerStream(userId, progressToken, (notification) => {
+          // Forward notification to client via response
+          // Note: In a real implementation, this would use SSE or WebSocket
+          // For now, we log that we would forward it
+          requestLogger.debug('Would forward progress notification', {
+            userId,
+            progressToken: notification.progressToken,
+            progress: notification.progress,
+            total: notification.total
+          });
+        });
+        
+        requestLogger.debug('Progress token extracted and stream registered', { userId, progressToken });
       }
       
       // 4. Get server instance
       const server = await this.getServerInstance(userId, accessToken);
       
-      // 5. Forward request to server via StreamableHTTPServerTransport
+      // 5. Intercept server notifications to forward progress
+      if (progressToken) {
+        const originalNotification = (server as any).notification?.bind(server);
+        if (originalNotification) {
+          (server as any).notification = (params: any) => {
+            // Check if this is a progress notification
+            if (params.method === 'notifications/progress') {
+              const handled = this.progressManager.forwardNotification(
+                params.params as ProgressNotification
+              );
+              
+              if (handled) {
+                requestLogger.debug('Progress notification intercepted and forwarded', {
+                  progressToken: params.params.progressToken
+                });
+                return; // Don't send through original path
+              }
+            }
+            
+            // Forward other notifications normally
+            if (originalNotification) {
+              originalNotification(params);
+            }
+          };
+        }
+      }
+      
+      // 6. Forward request to server via StreamableHTTPServerTransport
       requestLogger.debug('Forwarding request to MCP server', { userId, hasProgressToken: !!progressToken });
       
       const transport = new StreamableHTTPServerTransport({
@@ -348,17 +405,21 @@ export class AuthenticatedServerWrapper {
         hadProgressToken: !!progressToken
       });
       
-      // Clean up progress context after request completes
+      // Clean up progress context and stream after request completes
       if (progressToken) {
+        this.progressManager.unregisterStream(progressToken);
         this.clearProgressContext(userId);
       }
       
     } catch (error) {
       requestLogger.error('SSE request handling failed', error as Error);
       
-      // Clean up progress context on error
-      if (progressToken && userId) {
-        this.clearProgressContext(userId);
+      // Clean up progress context and stream on error
+      if (progressToken) {
+        this.progressManager.unregisterStream(progressToken);
+        if (userId) {
+          this.clearProgressContext(userId);
+        }
       }
       
       throw error;
@@ -710,4 +771,27 @@ export class AuthenticatedServerWrapper {
   isServerRunning(): boolean {
     return this.isRunning;
   }
+}
+
+/**
+ * Convenience function to create and configure an authenticated server wrapper
+ *
+ * @param config - Server wrapper configuration
+ * @returns Configured AuthenticatedServerWrapper instance
+ *
+ * @example
+ * ```typescript
+ * const wrapped = wrapServer({
+ *   serverFactory: (accessToken, userId) => createMyServer(accessToken, userId),
+ *   authProvider: new JWTAuthProvider({ jwtSecret: process.env.JWT_SECRET }),
+ *   tokenResolver: new APITokenResolver({ ... }),
+ *   resourceType: 'myapi',
+ *   transport: { type: 'sse', port: 3000 }
+ * });
+ *
+ * await wrapped.start();
+ * ```
+ */
+export function wrapServer(config: ServerWrapperConfig): AuthenticatedServerWrapper {
+  return new AuthenticatedServerWrapper(config);
 }

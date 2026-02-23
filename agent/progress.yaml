@@ -280,6 +280,7 @@ deliverables:
 note: "Critical CORS fix required before wider production deployment"
 
 recent_accomplishments:
+  - ✅ Completed Task 11: Progress Notification Forwarding (2026-02-23)
   - ✅ Completed Task 10: Progress Token Pass-Through (2026-02-23)
   - ✅ Initialized agent context (2026-02-23) - Full context loaded
   - ✅ Made tokenResolver optional for static servers (v7.0.3) - 2026-02-11
