@@ -22,6 +22,7 @@ export {
   type ServerWrapperConfig,
   type MCPServerFactory,
   type NormalizedServerWrapperConfig,
+  InstancePoolManager,
   ProgressManager,
   type ProgressCallback,
   type ProgressStreamMetrics
@@ -61,6 +62,7 @@ export type {
   RateLimitConfig,
   LoggingConfig,
   MiddlewareConfig,
+  InstancePoolConfig,
   PoolingConfig,
   Result,
   AsyncFunction,

@@ -249,7 +249,47 @@ export interface MiddlewareConfig {
 }
 
 /**
+ * Instance pool configuration for pooled mode
+ *
+ * Configures lifecycle management for pooled server instances.
+ * Used when instanceMode is 'pooled' to enable instance reuse.
+ */
+export interface InstancePoolConfig {
+  /**
+   * Maximum number of concurrent instances in the pool
+   *
+   * When this limit is reached, the least recently used instance
+   * will be evicted to make room for new instances.
+   *
+   * @minimum 1
+   */
+  maxSize: number;
+  
+  /**
+   * Milliseconds before closing an idle instance
+   *
+   * Instances that haven't been used for this duration will be
+   * automatically closed and removed from the pool.
+   *
+   * @minimum 1000 (1 second)
+   */
+  idleTimeout: number;
+  
+  /**
+   * Milliseconds before forcing an instance refresh
+   *
+   * Instances older than this duration will be closed and recreated,
+   * even if they're still being used. This prevents stale connections
+   * and ensures instances don't run indefinitely.
+   *
+   * @minimum idleTimeout
+   */
+  maxLifetime: number;
+}
+
+/**
  * Server pooling configuration
+ * @deprecated Use InstancePoolConfig instead
  */
 export interface PoolingConfig {
   /**

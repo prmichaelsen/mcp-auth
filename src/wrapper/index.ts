@@ -7,6 +7,11 @@ export { AuthenticatedServerWrapper } from './server-wrapper.js';
 export type { ServerWrapperConfig, NormalizedServerWrapperConfig, MCPServerFactory } from './config.js';
 
 /**
+ * Instance pool manager exports
+ */
+export { InstancePoolManager } from './instance-pool-manager.js';
+
+/**
  * Progress manager exports
  */
 export { ProgressManager, type ProgressStreamMetrics } from './progress-manager.js';

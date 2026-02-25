@@ -22,9 +22,11 @@ import {
   validateResourceType,
   validateUserId,
   validateAccessToken,
-  validateTransportConfig
+  validateTransportConfig,
+  validatePositiveNumber
 } from '../utils/validation.js';
 import { ProgressManager } from './progress-manager.js';
+import { InstancePoolManager } from './instance-pool-manager.js';
 
 /**
  * Server instance metadata (for pooled mode)
@@ -63,6 +65,7 @@ export class AuthenticatedServerWrapper {
   private config: NormalizedServerWrapperConfig;
   private logger: Logger;
   private serverPool: Map<string, ServerInstance>;
+  private poolManager?: InstancePoolManager;
   private isRunning: boolean = false;
   private cleanupTimer?: NodeJS.Timeout;
   private progressContexts: Map<string, string | number> = new Map();
@@ -79,8 +82,22 @@ export class AuthenticatedServerWrapper {
     // Initialize logger
     this.logger = createLogger(this.config.middleware.logging);
     
-    // Initialize server pool (only used in pooled mode)
+    // Initialize server pool (legacy - only used in old pooled mode)
     this.serverPool = new Map();
+    
+    // Initialize pool manager if pooled mode with instancePool config
+    if (this.config.instanceMode === 'pooled' && this.config.instancePool) {
+      this.poolManager = new InstancePoolManager(
+        this.config.instancePool,
+        this.logger
+      );
+      
+      this.logger.info('Instance pool manager initialized', {
+        maxSize: this.config.instancePool.maxSize,
+        idleTimeout: this.config.instancePool.idleTimeout,
+        maxLifetime: this.config.instancePool.maxLifetime
+      });
+    }
     
     // Initialize progress manager
     this.progressManager = new ProgressManager(this.logger);
@@ -120,6 +137,31 @@ export class AuthenticatedServerWrapper {
     validateResourceType(config.resourceType);
     validateTransportConfig(config.transport);
     
+    // Validate instance pool config if pooled mode
+    if (config.instanceMode === 'pooled') {
+      if (!config.instancePool) {
+        throw new ConfigurationError(
+          'instancePool configuration required when instanceMode is "pooled"'
+        );
+      }
+      
+      validatePositiveNumber(config.instancePool.maxSize, 'instancePool.maxSize');
+      validatePositiveNumber(config.instancePool.idleTimeout, 'instancePool.idleTimeout');
+      validatePositiveNumber(config.instancePool.maxLifetime, 'instancePool.maxLifetime');
+      
+      if (config.instancePool.maxSize < 1) {
+        throw new ConfigurationError('instancePool.maxSize must be at least 1');
+      }
+      
+      if (config.instancePool.idleTimeout < 1000) {
+        throw new ConfigurationError('instancePool.idleTimeout must be at least 1000ms (1 second)');
+      }
+      
+      if (config.instancePool.maxLifetime < config.instancePool.idleTimeout) {
+        throw new ConfigurationError('instancePool.maxLifetime must be >= idleTimeout');
+      }
+    }
+    
     // Log mode based on tokenResolver presence
     if (config.tokenResolver) {
       this.logger?.info('Token resolver configured - dynamic mode', {
@@ -145,6 +187,7 @@ export class AuthenticatedServerWrapper {
       name: config.name ?? 'mcp-auth-wrapped-server',
       version: config.version ?? '1.0.0',
       instanceMode: config.instanceMode ?? 'ephemeral',
+      instancePool: config.instancePool ?? null,  // Convert undefined to null
       middleware: {
         rateLimit: config.middleware?.rateLimit,
         logging: config.middleware?.logging ?? { enabled: true, level: 'info' }
@@ -233,7 +276,12 @@ export class AuthenticatedServerWrapper {
       this.cleanupInterval = undefined;
     }
     
-    // Close all pooled servers
+    // Close pool manager if exists
+    if (this.poolManager) {
+      await this.poolManager.closeAll();
+    }
+    
+    // Close all pooled servers (legacy)
     if (this.config.instanceMode === 'pooled') {
       for (const [userId, instance] of this.serverPool.entries()) {
         try {
@@ -444,6 +492,16 @@ export class AuthenticatedServerWrapper {
    * Get or create pooled server instance
    */
   private async getPooledServerInstance(userId: string, accessToken: string): Promise<Server> {
+    // Use new InstancePoolManager if configured
+    if (this.poolManager) {
+      return await this.poolManager.getInstance(
+        userId,
+        accessToken,
+        this.config.serverFactory
+      );
+    }
+    
+    // Legacy pooling logic (deprecated)
     // Check if we have a cached server instance
     if (this.serverPool.has(userId)) {
       const instance = this.serverPool.get(userId)!;

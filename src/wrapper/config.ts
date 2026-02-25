@@ -6,7 +6,7 @@
 
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import type { AuthProvider, ResourceTokenResolver } from '../auth/types.js';
-import type { TransportConfig, MiddlewareConfig } from '../types.js';
+import type { TransportConfig, MiddlewareConfig, InstancePoolConfig } from '../types.js';
 
 /**
  * MCP Server Factory Function
@@ -139,8 +139,26 @@ export interface ServerWrapperConfig {
   instanceMode?: 'ephemeral' | 'pooled';
   
   /**
+   * Instance pool configuration (required when instanceMode is 'pooled')
+   *
+   * Configures lifecycle management for pooled server instances.
+   * Enables efficient instance reuse for performance-critical applications.
+   *
+   * @example
+   * ```typescript
+   * instancePool: {
+   *   maxSize: 10,              // Max 10 concurrent instances
+   *   idleTimeout: 300000,      // Close after 5 min idle
+   *   maxLifetime: 3600000      // Force refresh after 1 hour
+   * }
+   * ```
+   */
+  instancePool?: InstancePoolConfig;
+  
+  /**
+   * @deprecated Use instancePool instead
    * Optional: Pooling configuration (only used if instanceMode is 'pooled')
-   * 
+   *
    * Note: Pooling is optional and adds complexity. Ephemeral mode is recommended.
    */
   pooling?: {
@@ -180,9 +198,10 @@ export interface ServerWrapperConfig {
  * Validated and normalized server wrapper configuration
  * Used internally after validation
  */
-export interface NormalizedServerWrapperConfig extends Required<Omit<ServerWrapperConfig, 'middleware' | 'pooling' | 'tokenResolver'>> {
+export interface NormalizedServerWrapperConfig extends Required<Omit<ServerWrapperConfig, 'middleware' | 'pooling' | 'tokenResolver' | 'instancePool'>> {
   tokenResolver: ResourceTokenResolver | null;
   middleware: MiddlewareConfig;
+  instancePool: InstancePoolConfig | null;
   pooling: {
     maxServersPerUser: number;
     idleTimeoutMs: number;
