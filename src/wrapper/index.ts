@@ -4,7 +4,7 @@
 
 export { wrapServer } from './server-wrapper.js';
 export { AuthenticatedServerWrapper } from './server-wrapper.js';
-export type { ServerWrapperConfig, NormalizedServerWrapperConfig, MCPServerFactory } from './config.js';
+export type { ServerWrapperConfig, NormalizedServerWrapperConfig, MCPServerFactory, MCPServerFactoryExtras } from './config.js';
 
 /**
  * Instance pool manager exports

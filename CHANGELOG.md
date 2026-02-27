@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.3.0] - 2026-02-27
+
+### Added
+
+- **Server Factory Extras**: `MCPServerFactory` now accepts an optional third `extras` parameter (`MCPServerFactoryExtras`) populated from URL query parameters
+- **RequestContext Query**: `RequestContext` includes `query` field, automatically populated from HTTP/SSE request query params
+- **New exported type**: `MCPServerFactoryExtras` — `Record<string, string | string[] | undefined>`
+
+### Changed
+
+- `getServerInstance`, `getPooledServerInstance`, and `InstancePoolManager.getInstance` forward extras through the full call chain
+- Express route handler captures `req.query` into `RequestContext.query`
+
+**Backwards compatible** — existing 2-param server factories continue to work unchanged.
+
 ## [7.1.0] - 2026-02-23
 
 ### Added

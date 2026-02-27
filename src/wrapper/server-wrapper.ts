@@ -8,7 +8,7 @@
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import type { ServerWrapperConfig, NormalizedServerWrapperConfig } from './config.js';
+import type { ServerWrapperConfig, NormalizedServerWrapperConfig, MCPServerFactoryExtras } from './config.js';
 import type { RequestContext, ProgressNotification } from '../types.js';
 import {
   AuthenticationError,
@@ -402,8 +402,8 @@ export class AuthenticatedServerWrapper {
         requestLogger.debug('Progress token extracted and stream registered', { userId, progressToken });
       }
       
-      // 4. Get server instance
-      const server = await this.getServerInstance(userId, accessToken);
+      // 4. Get server instance (pass query params as extras)
+      const server = await this.getServerInstance(userId, accessToken, context.query);
       
       // 5. Intercept server notifications to forward progress
       if (progressToken) {
@@ -477,27 +477,28 @@ export class AuthenticatedServerWrapper {
   /**
    * Get server instance (ephemeral or from pool)
    */
-  private async getServerInstance(userId: string, accessToken: string): Promise<Server> {
+  private async getServerInstance(userId: string, accessToken: string, extras?: MCPServerFactoryExtras): Promise<Server> {
     if (this.config.instanceMode === 'ephemeral') {
       // Create new server instance for each request (recommended)
       this.logger.debug('Creating ephemeral server instance', { userId });
-      return await this.config.serverFactory(accessToken, userId);
+      return await this.config.serverFactory(accessToken, userId, extras);
     }
-    
+
     // Pooled mode
-    return await this.getPooledServerInstance(userId, accessToken);
+    return await this.getPooledServerInstance(userId, accessToken, extras);
   }
   
   /**
    * Get or create pooled server instance
    */
-  private async getPooledServerInstance(userId: string, accessToken: string): Promise<Server> {
+  private async getPooledServerInstance(userId: string, accessToken: string, extras?: MCPServerFactoryExtras): Promise<Server> {
     // Use new InstancePoolManager if configured
     if (this.poolManager) {
       return await this.poolManager.getInstance(
         userId,
         accessToken,
-        this.config.serverFactory
+        this.config.serverFactory,
+        extras
       );
     }
     
@@ -530,7 +531,7 @@ export class AuthenticatedServerWrapper {
     
     // Create new server instance
     this.logger.info('Creating new pooled server instance', { userId });
-    const server = await this.config.serverFactory(accessToken, userId);
+    const server = await this.config.serverFactory(accessToken, userId, extras);
     
     // Add to pool
     this.serverPool.set(userId, {
@@ -730,9 +731,10 @@ export class AuthenticatedServerWrapper {
           headers: req.headers as Record<string, string>,
           transport: 'sse',
           timestamp: new Date(),
-          requestId: req.headers['x-request-id'] as string | undefined
+          requestId: req.headers['x-request-id'] as string | undefined,
+          query: req.query as Record<string, string | string[] | undefined>
         };
-        
+
         // Handle request and forward to MCP server via transport
         await this.handleSSERequest(req, res, context);
         

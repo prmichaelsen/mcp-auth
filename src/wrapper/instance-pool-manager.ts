@@ -8,6 +8,7 @@
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import type { InstancePoolConfig } from '../types.js';
 import type { Logger } from '../utils/logger.js';
+import type { MCPServerFactoryExtras } from './config.js';
 
 /**
  * Metadata for a pooled server instance
@@ -75,19 +76,21 @@ export class InstancePoolManager {
   
   /**
    * Get or create a server instance for a user
-   * 
+   *
    * If a valid instance exists for the user, it will be reused.
    * Otherwise, a new instance will be created using the factory function.
-   * 
+   *
    * @param userId - User identifier
    * @param accessToken - Access token for the user
    * @param factory - Factory function to create new server instances
+   * @param extras - Optional request-level context forwarded to the factory
    * @returns Server instance (existing or newly created)
    */
   async getInstance(
     userId: string,
     accessToken: string,
-    factory: (accessToken: string, userId: string) => Server | Promise<Server>
+    factory: (accessToken: string, userId: string, extras?: MCPServerFactoryExtras) => Server | Promise<Server>,
+    extras?: MCPServerFactoryExtras
   ): Promise<Server> {
     // Check if instance exists and is valid
     const existing = this.instances.get(userId);
@@ -118,7 +121,7 @@ export class InstancePoolManager {
     
     // Create new instance
     this.logger.debug('Creating new pooled instance', { userId });
-    const server = await factory(accessToken, userId);
+    const server = await factory(accessToken, userId, extras);
     
     this.instances.set(userId, {
       server,

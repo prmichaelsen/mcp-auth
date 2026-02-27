@@ -21,6 +21,7 @@ export {
   AuthenticatedServerWrapper,
   type ServerWrapperConfig,
   type MCPServerFactory,
+  type MCPServerFactoryExtras,
   type NormalizedServerWrapperConfig,
   InstancePoolManager,
   ProgressManager,

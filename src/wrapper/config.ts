@@ -9,17 +9,27 @@ import type { AuthProvider, ResourceTokenResolver } from '../auth/types.js';
 import type { TransportConfig, MiddlewareConfig, InstancePoolConfig } from '../types.js';
 
 /**
+ * Extra context passed from the HTTP request to the server factory.
+ *
+ * Populated from URL query parameters on HTTP/SSE transports.
+ * Consumers can use this for any request-level context — ghost mode,
+ * feature flags, conversation IDs, etc.
+ */
+export type MCPServerFactoryExtras = Record<string, string | string[] | undefined>;
+
+/**
  * MCP Server Factory Function
- * 
+ *
  * Creates a configured MCP server instance for a specific user.
  * This is the core contract that MCP servers must implement to be compatible
  * with mcp-auth server wrapping.
- * 
+ *
  * @param accessToken - Resource-specific access token (e.g., Instagram, GitHub token)
  * @param userId - Authenticated user identifier
+ * @param extras - Optional request-level context from URL query parameters
  * @returns Configured MCP server instance
- * 
- * @example
+ *
+ * @example Basic usage
  * ```typescript
  * export function createServer(accessToken: string, userId?: string): Server {
  *   const server = new Server({ name: 'my-server', version: '1.0.0' });
@@ -28,10 +38,21 @@ import type { TransportConfig, MiddlewareConfig, InstancePoolConfig } from '../t
  *   return server;
  * }
  * ```
+ *
+ * @example With extras (e.g., ghost mode)
+ * ```typescript
+ * serverFactory: (accessToken, userId, extras) => createServer(accessToken, userId, {
+ *   ghostMode: extras?.ghost_owner ? {
+ *     owner_user_id: extras.ghost_owner as string,
+ *     accessor_user_id: userId,
+ *   } : undefined,
+ * })
+ * ```
  */
 export type MCPServerFactory = (
   accessToken: string,
-  userId: string
+  userId: string,
+  extras?: MCPServerFactoryExtras
 ) => Server | Promise<Server>;
 
 /**
@@ -42,13 +63,23 @@ export type MCPServerFactory = (
 export interface ServerWrapperConfig {
   /**
    * Factory function that creates a server instance for a specific user
-   * 
+   *
    * This function will be called for each request (ephemeral instances)
    * or reused from pool (if pooling is enabled).
-   * 
-   * @example
+   *
+   * The optional third parameter `extras` contains URL query parameters
+   * from the incoming HTTP request, enabling request-level context.
+   *
+   * @example Basic
    * ```typescript
-   * serverFactory: (accessToken, userId) => createInstagramServer(accessToken, userId)
+   * serverFactory: (accessToken, userId) => createServer(accessToken, userId)
+   * ```
+   *
+   * @example With extras
+   * ```typescript
+   * serverFactory: (accessToken, userId, extras) => createServer(accessToken, userId, {
+   *   ghostMode: extras?.ghost_owner ? { owner_user_id: extras.ghost_owner as string } : undefined,
+   * })
    * ```
    */
   serverFactory: MCPServerFactory;

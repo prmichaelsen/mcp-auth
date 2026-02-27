@@ -83,6 +83,15 @@ export interface RequestContext {
    * Optional: Request ID for tracing
    */
   requestId?: string;
+
+  /**
+   * Optional: URL query parameters from the incoming request
+   *
+   * Populated automatically for HTTP/SSE transports.
+   * Allows passing request-level context (e.g., feature flags, mode selectors)
+   * through to the server factory via extras.
+   */
+  query?: Record<string, string | string[] | undefined>;
 }
 
 /**
