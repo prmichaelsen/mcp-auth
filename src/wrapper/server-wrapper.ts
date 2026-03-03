@@ -402,8 +402,21 @@ export class AuthenticatedServerWrapper {
         requestLogger.debug('Progress token extracted and stream registered', { userId, progressToken });
       }
       
-      // 4. Get server instance (pass query params as extras)
-      const server = await this.getServerInstance(userId, accessToken, context.query);
+      // 4. Get server instance (pass query params + custom headers as extras)
+      // Extract custom headers (X-* headers) for ghost mode, etc.
+      const customHeaders: Record<string, any> = {};
+      if (context.headers) {
+        for (const [key, value] of Object.entries(context.headers)) {
+          if (key.toLowerCase().startsWith('x-')) {
+            // Remove 'x-' prefix and convert to snake_case (e.g., X-Ghost-Owner -> ghost_owner)
+            const paramKey = key.substring(2).toLowerCase().replace(/-/g, '_');
+            customHeaders[paramKey] = value;
+          }
+        }
+      }
+
+      const extras = { ...context.query, ...customHeaders };
+      const server = await this.getServerInstance(userId, accessToken, extras);
       
       // 5. Intercept server notifications to forward progress
       if (progressToken) {
