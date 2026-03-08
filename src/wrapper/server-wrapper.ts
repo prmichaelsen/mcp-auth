@@ -710,7 +710,10 @@ export class AuthenticatedServerWrapper {
         origin: this.config.transport.corsOrigin,
         credentials: true,
         methods: ['GET', 'POST', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
+        allowedHeaders: [
+          'Content-Type', 'Authorization', 'X-Request-ID',
+          ...(this.config.transport.corsAllowedHeaders || []),
+        ],
         exposedHeaders: ['X-Request-ID'],
         maxAge: 86400 // 24 hours
       }));

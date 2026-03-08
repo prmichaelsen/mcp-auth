@@ -182,6 +182,20 @@ export interface TransportConfig {
    * ```
    */
   corsOrigin?: string | string[];
+
+  /**
+   * Additional CORS allowed headers beyond the defaults
+   * (Content-Type, Authorization, X-Request-ID).
+   *
+   * Use this to allow custom X-* headers that your server factory
+   * needs from client requests.
+   *
+   * @example
+   * ```typescript
+   * corsAllowedHeaders: ['X-Internal-Type', 'X-Ghost-Owner', 'X-Ghost-Type']
+   * ```
+   */
+  corsAllowedHeaders?: string[];
 }
 
 /**
