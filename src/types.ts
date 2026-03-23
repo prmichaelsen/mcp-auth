@@ -272,6 +272,47 @@ export interface MiddlewareConfig {
 }
 
 /**
+ * Session configuration for stateful mode
+ *
+ * Configures session lifecycle management when sessionMode is 'stateful'.
+ * Sessions enable multi-turn server-client communication (e.g., elicitation).
+ */
+export interface SessionConfig {
+  /**
+   * Session idle timeout in milliseconds
+   *
+   * Sessions that haven't received a request for this duration will be
+   * automatically closed and removed.
+   *
+   * @default 300000 (5 minutes)
+   * @minimum 10000 (10 seconds)
+   */
+  idleTimeout?: number;
+
+  /**
+   * Maximum session lifetime in milliseconds
+   *
+   * Sessions older than this duration will be closed regardless of activity.
+   * Prevents sessions from running indefinitely.
+   *
+   * @default 3600000 (1 hour)
+   * @minimum idleTimeout
+   */
+  maxLifetime?: number;
+
+  /**
+   * Maximum number of concurrent sessions
+   *
+   * When this limit is reached, new session creation will be rejected
+   * with a 503 Service Unavailable response.
+   *
+   * @default 1000
+   * @minimum 1
+   */
+  maxSessions?: number;
+}
+
+/**
  * Instance pool configuration for pooled mode
  *
  * Configures lifecycle management for pooled server instances.

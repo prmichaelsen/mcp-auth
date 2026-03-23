@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.5.0] - 2026-03-23
+
+### Added
+
+- **Stateful session mode**: `sessionMode: 'stateful'` enables persistent MCP sessions across multiple HTTP requests, unlocking multi-turn server-client communication (elicitation, sampling, roots)
+- **Session lifecycle management**: automatic idle timeout, max lifetime, concurrent session limits, and periodic cleanup
+- **New config options**: `sessionMode` (`'stateless'` | `'stateful'`), `session` (`SessionConfig`) on `ServerWrapperConfig`
+- **New exported type**: `SessionConfig` — configures `idleTimeout`, `maxLifetime`, `maxSessions`
+- **GET/DELETE routes**: stateful mode registers GET (SSE stream) and DELETE (session termination) handlers on the message endpoint
+- **CORS**: `Mcp-Session-Id` added to allowed/exposed headers; DELETE added to allowed methods
+
+### Changed
+
+- `authenticateAndResolve` and `buildExtras` extracted as reusable methods from `handleSSERequest`
+- Health endpoint includes `sessionMode` and `activeSessions` count in stateful mode
+- Root info endpoint includes `sessionMode`
+
+**Backwards compatible** — defaults to `sessionMode: 'stateless'`, preserving existing behavior.
+
 ## [7.3.0] - 2026-02-27
 
 ### Added

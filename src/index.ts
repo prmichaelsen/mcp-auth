@@ -64,6 +64,7 @@ export type {
   LoggingConfig,
   MiddlewareConfig,
   InstancePoolConfig,
+  SessionConfig,
   PoolingConfig,
   Result,
   AsyncFunction,

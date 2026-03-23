@@ -6,7 +6,7 @@
 
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import type { AuthProvider, ResourceTokenResolver } from '../auth/types.js';
-import type { TransportConfig, MiddlewareConfig, InstancePoolConfig } from '../types.js';
+import type { TransportConfig, MiddlewareConfig, InstancePoolConfig, SessionConfig } from '../types.js';
 
 /**
  * Extra context passed from the HTTP request to the server factory.
@@ -170,6 +170,40 @@ export interface ServerWrapperConfig {
   instanceMode?: 'ephemeral' | 'pooled';
   
   /**
+   * Optional: Session mode for HTTP/SSE transports
+   *
+   * - 'stateless': Each request is independent (default, current behavior)
+   * - 'stateful': Sessions persist across requests, enabling MCP features
+   *   that require multi-turn server-client communication (e.g., elicitation,
+   *   sampling, roots)
+   *
+   * In stateful mode, the wrapper manages session lifecycle:
+   * - POST without Mcp-Session-Id: creates a new session (initialize)
+   * - POST with Mcp-Session-Id: routes to existing session
+   * - GET with Mcp-Session-Id: opens SSE stream for server→client messages
+   * - DELETE with Mcp-Session-Id: terminates session
+   *
+   * @default 'stateless'
+   */
+  sessionMode?: 'stateless' | 'stateful';
+
+  /**
+   * Session configuration (used when sessionMode is 'stateful')
+   *
+   * Configures session timeouts, limits, and lifecycle management.
+   *
+   * @example
+   * ```typescript
+   * session: {
+   *   idleTimeout: 300000,   // 5 min idle timeout
+   *   maxLifetime: 3600000,  // 1 hour max lifetime
+   *   maxSessions: 1000      // Max 1000 concurrent sessions
+   * }
+   * ```
+   */
+  session?: SessionConfig;
+
+  /**
    * Instance pool configuration (required when instanceMode is 'pooled')
    *
    * Configures lifecycle management for pooled server instances.
@@ -229,10 +263,11 @@ export interface ServerWrapperConfig {
  * Validated and normalized server wrapper configuration
  * Used internally after validation
  */
-export interface NormalizedServerWrapperConfig extends Required<Omit<ServerWrapperConfig, 'middleware' | 'pooling' | 'tokenResolver' | 'instancePool'>> {
+export interface NormalizedServerWrapperConfig extends Required<Omit<ServerWrapperConfig, 'middleware' | 'pooling' | 'tokenResolver' | 'instancePool' | 'session'>> {
   tokenResolver: ResourceTokenResolver | null;
   middleware: MiddlewareConfig;
   instancePool: InstancePoolConfig | null;
+  session: Required<SessionConfig>;
   pooling: {
     maxServersPerUser: number;
     idleTimeoutMs: number;

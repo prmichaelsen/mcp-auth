@@ -5,6 +5,7 @@
  * Uses ephemeral instances by default for security.
  */
 
+import { randomUUID } from 'node:crypto';
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -40,8 +41,23 @@ interface ServerInstance {
 }
 
 /**
+ * Managed session for stateful mode
+ *
+ * Tracks the transport, server, and metadata for a single MCP session.
+ */
+interface ManagedSession {
+  sessionId: string;
+  transport: StreamableHTTPServerTransport;
+  server: Server;
+  userId: string;
+  accessToken: string;
+  createdAt: number;
+  lastUsed: number;
+}
+
+/**
  * Authenticated server wrapper
- * 
+ *
  * Wraps an MCP server with authentication, automatically handling:
  * - Request authentication via AuthProvider
  * - Token resolution via ResourceTokenResolver
@@ -71,6 +87,8 @@ export class AuthenticatedServerWrapper {
   private progressContexts: Map<string, string | number> = new Map();
   private progressManager!: ProgressManager;
   private cleanupInterval?: NodeJS.Timeout;
+  private sessions: Map<string, ManagedSession> = new Map();
+  private sessionCleanupTimer?: NodeJS.Timeout;
   
   constructor(config: ServerWrapperConfig) {
     // Validate configuration
@@ -188,6 +206,12 @@ export class AuthenticatedServerWrapper {
       version: config.version ?? '1.0.0',
       instanceMode: config.instanceMode ?? 'ephemeral',
       instancePool: config.instancePool ?? null,  // Convert undefined to null
+      sessionMode: config.sessionMode ?? 'stateless',
+      session: {
+        idleTimeout: config.session?.idleTimeout ?? 300000,
+        maxLifetime: config.session?.maxLifetime ?? 3600000,
+        maxSessions: config.session?.maxSessions ?? 1000
+      },
       middleware: {
         rateLimit: config.middleware?.rateLimit,
         logging: config.middleware?.logging ?? { enabled: true, level: 'info' }
@@ -276,6 +300,17 @@ export class AuthenticatedServerWrapper {
       this.cleanupInterval = undefined;
     }
     
+    // Clear session cleanup timer
+    if (this.sessionCleanupTimer) {
+      clearInterval(this.sessionCleanupTimer);
+      this.sessionCleanupTimer = undefined;
+    }
+
+    // Close all active sessions
+    for (const sessionId of [...this.sessions.keys()]) {
+      await this.closeSession(sessionId);
+    }
+
     // Close pool manager if exists
     if (this.poolManager) {
       await this.poolManager.closeAll();
@@ -336,6 +371,231 @@ export class AuthenticatedServerWrapper {
     this.logger.debug('Cleared progress context', { userId });
   }
   
+  /**
+   * Authenticate a request and resolve the access token.
+   * Shared by both stateless and stateful request flows.
+   */
+  private async authenticateAndResolve(context: RequestContext, requestLogger: Logger): Promise<{ userId: string; accessToken: string }> {
+    requestLogger.debug('Authenticating request');
+    const authResult = await this.config.authProvider.authenticate(context);
+
+    if (!authResult.authenticated || !authResult.userId) {
+      requestLogger.warn('Authentication failed', { error: authResult.error });
+      throw new AuthenticationError(authResult.error || 'Authentication failed');
+    }
+
+    const userId = validateUserId(authResult.userId);
+    requestLogger.debug('Authentication successful', { userId });
+
+    let accessToken: string;
+
+    if (this.config.tokenResolver) {
+      const resolvedToken = await this.config.tokenResolver.resolveToken(
+        userId,
+        this.config.resourceType
+      );
+
+      if (!resolvedToken) {
+        requestLogger.warn('Token resolution failed', { userId, resourceType: this.config.resourceType });
+        throw new TokenResolutionError(userId, this.config.resourceType);
+      }
+
+      validateAccessToken(resolvedToken);
+      accessToken = resolvedToken;
+      requestLogger.debug('Token resolved', { userId, resourceType: this.config.resourceType });
+    } else {
+      accessToken = '';
+      requestLogger.debug('Static mode - no token resolution', { userId, mode: 'static' });
+    }
+
+    return { userId, accessToken };
+  }
+
+  /**
+   * Build extras from request context (query params + custom X-* headers)
+   */
+  private buildExtras(context: RequestContext): MCPServerFactoryExtras {
+    const customHeaders: Record<string, any> = {};
+    if (context.headers) {
+      for (const [key, value] of Object.entries(context.headers)) {
+        if (key.toLowerCase().startsWith('x-')) {
+          const paramKey = key.substring(2).toLowerCase().replace(/-/g, '_');
+          customHeaders[paramKey] = value;
+        }
+      }
+    }
+    return { ...context.query, ...customHeaders };
+  }
+
+  /**
+   * Create a new stateful session.
+   * Generates a session ID, creates a transport+server pair, and stores them.
+   */
+  private async createSession(userId: string, accessToken: string, extras: MCPServerFactoryExtras): Promise<ManagedSession> {
+    if (this.sessions.size >= this.config.session.maxSessions) {
+      throw new TransportError(
+        `Maximum concurrent sessions (${this.config.session.maxSessions}) reached`
+      );
+    }
+
+    const server = await this.getServerInstance(userId, accessToken, extras);
+
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => randomUUID(),
+    });
+
+    await server.connect(transport);
+
+    const sessionId = transport.sessionId!;
+
+    const session: ManagedSession = {
+      sessionId,
+      transport,
+      server,
+      userId,
+      accessToken,
+      createdAt: Date.now(),
+      lastUsed: Date.now()
+    };
+
+    this.sessions.set(sessionId, session);
+
+    // Clean up session when transport closes
+    transport.onclose = () => {
+      this.sessions.delete(sessionId);
+      this.logger.debug('Session closed via transport', { sessionId, userId });
+    };
+
+    this.logger.info('Session created', { sessionId, userId });
+
+    // Start cleanup timer if not already running
+    if (!this.sessionCleanupTimer) {
+      this.scheduleSessionCleanup();
+    }
+
+    return session;
+  }
+
+  /**
+   * Look up an existing session by ID.
+   */
+  private getSession(sessionId: string): ManagedSession | undefined {
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      session.lastUsed = Date.now();
+    }
+    return session;
+  }
+
+  /**
+   * Close and remove a session.
+   */
+  private async closeSession(sessionId: string): Promise<void> {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+
+    try {
+      await session.transport.close();
+      await session.server.close();
+    } catch (error) {
+      this.logger.error('Error closing session', error as Error, { sessionId });
+    }
+
+    this.sessions.delete(sessionId);
+    this.logger.info('Session removed', { sessionId, userId: session.userId });
+  }
+
+  /**
+   * Schedule periodic cleanup of expired sessions.
+   */
+  private scheduleSessionCleanup(): void {
+    const checkInterval = Math.min(this.config.session.idleTimeout, 60000);
+
+    this.sessionCleanupTimer = setInterval(async () => {
+      const now = Date.now();
+      const toRemove: string[] = [];
+
+      for (const [sessionId, session] of this.sessions.entries()) {
+        const age = now - session.createdAt;
+        const idle = now - session.lastUsed;
+
+        if (age > this.config.session.maxLifetime || idle > this.config.session.idleTimeout) {
+          toRemove.push(sessionId);
+        }
+      }
+
+      for (const sessionId of toRemove) {
+        this.logger.info('Cleaning up expired session', { sessionId });
+        await this.closeSession(sessionId);
+      }
+
+      // Stop timer if no sessions remain
+      if (this.sessions.size === 0 && this.sessionCleanupTimer) {
+        clearInterval(this.sessionCleanupTimer);
+        this.sessionCleanupTimer = undefined;
+      }
+    }, checkInterval);
+  }
+
+  /**
+   * Handle a stateful request (sessionMode: 'stateful').
+   *
+   * Routes requests based on Mcp-Session-Id header:
+   * - POST without session ID: authenticate + create new session
+   * - POST/GET/DELETE with session ID: route to existing session
+   */
+  private async handleStatefulRequest(req: any, res: any, context: RequestContext): Promise<void> {
+    const requestLogger = this.logger.child({ requestId: context.requestId });
+    const sessionId = req.headers['mcp-session-id'] as string | undefined;
+    const method = req.method?.toUpperCase();
+
+    if (sessionId) {
+      // Route to existing session
+      const session = this.getSession(sessionId);
+      if (!session) {
+        res.status(404).json({
+          error: 'Session not found or expired',
+          code: 'SESSION_NOT_FOUND'
+        });
+        return;
+      }
+
+      // Authenticate to verify the caller owns this session
+      const { userId } = await this.authenticateAndResolve(context, requestLogger);
+      if (userId !== session.userId) {
+        requestLogger.warn('Session userId mismatch', { sessionId, expected: session.userId, got: userId });
+        res.status(403).json({
+          error: 'Session does not belong to this user',
+          code: 'SESSION_FORBIDDEN'
+        });
+        return;
+      }
+
+      requestLogger.debug('Routing to existing session', { sessionId, method });
+      await session.transport.handleRequest(req, res, req.body);
+      return;
+    }
+
+    // No session ID — must be POST (initialize)
+    if (method !== 'POST') {
+      res.status(400).json({
+        error: 'Missing Mcp-Session-Id header',
+        code: 'SESSION_REQUIRED'
+      });
+      return;
+    }
+
+    // Authenticate and create new session
+    const { userId, accessToken } = await this.authenticateAndResolve(context, requestLogger);
+    const extras = this.buildExtras(context);
+
+    const session = await this.createSession(userId, accessToken, extras);
+    requestLogger.info('New session initialized', { sessionId: session.sessionId, userId });
+
+    // Forward the initialize request through the new session's transport
+    await session.transport.handleRequest(req, res, req.body);
+  }
+
   /**
    * Handle SSE request with direct Express req/res access
    * This allows us to use StreamableHTTPServerTransport properly
@@ -709,12 +969,12 @@ export class AuthenticatedServerWrapper {
       app.use(cors.default({
         origin: this.config.transport.corsOrigin,
         credentials: true,
-        methods: ['GET', 'POST', 'OPTIONS'],
+        methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
         allowedHeaders: [
-          'Content-Type', 'Authorization', 'X-Request-ID',
+          'Content-Type', 'Authorization', 'X-Request-ID', 'Mcp-Session-Id',
           ...(this.config.transport.corsAllowedHeaders || []),
         ],
-        exposedHeaders: ['X-Request-ID'],
+        exposedHeaders: ['X-Request-ID', 'Mcp-Session-Id'],
         maxAge: 86400 // 24 hours
       }));
       
@@ -732,6 +992,7 @@ export class AuthenticatedServerWrapper {
         name: this.config.name,
         version: this.config.version,
         resourceType: this.config.resourceType,
+        sessionMode: this.config.sessionMode,
         endpoints: {
           message: `POST ${basePath}/message`,
           health: `GET ${basePath}/health`
@@ -739,37 +1000,80 @@ export class AuthenticatedServerWrapper {
         documentation: 'https://github.com/prmichaelsen/mcp-auth'
       });
     });
-    
-    // SSE endpoint for MCP messages
+
+    const isStateful = this.config.sessionMode === 'stateful';
+
+    // Error handler shared by all message routes
+    const handleError = (error: unknown, res: any) => {
+      this.logger.error('Request failed', error as Error);
+
+      if (error instanceof AuthenticationError || error instanceof TokenResolutionError) {
+        res.status((error as any).statusCode).json({
+          error: (error as Error).message,
+          code: (error as any).code
+        });
+      } else if (error instanceof TransportError) {
+        res.status(503).json({
+          error: (error as Error).message,
+          code: 'TRANSPORT_ERROR'
+        });
+      } else {
+        res.status(500).json({
+          error: 'Internal server error',
+          code: 'INTERNAL_ERROR'
+        });
+      }
+    };
+
+    const buildContext = (req: any): RequestContext => ({
+      headers: req.headers as Record<string, string>,
+      transport: 'sse',
+      timestamp: new Date(),
+      requestId: req.headers['x-request-id'] as string | undefined,
+      query: req.query as Record<string, string | string[] | undefined>
+    });
+
+    // POST endpoint for MCP messages
     app.post(`${basePath}/message`, async (req: any, res: any) => {
       try {
-        const context: RequestContext = {
-          headers: req.headers as Record<string, string>,
-          transport: 'sse',
-          timestamp: new Date(),
-          requestId: req.headers['x-request-id'] as string | undefined,
-          query: req.query as Record<string, string | string[] | undefined>
-        };
-
-        // Handle request and forward to MCP server via transport
-        await this.handleSSERequest(req, res, context);
-        
-      } catch (error) {
-        this.logger.error('SSE request failed', error as Error);
-        
-        if (error instanceof AuthenticationError || error instanceof TokenResolutionError) {
-          res.status(error.statusCode).json({
-            error: error.message,
-            code: error.code
-          });
+        const context = buildContext(req);
+        if (isStateful) {
+          await this.handleStatefulRequest(req, res, context);
         } else {
-          res.status(500).json({
-            error: 'Internal server error',
-            code: 'INTERNAL_ERROR'
-          });
+          await this.handleSSERequest(req, res, context);
         }
+      } catch (error) {
+        handleError(error, res);
       }
     });
+
+    if (isStateful) {
+      // GET endpoint for SSE streams (server→client messages like elicitation)
+      app.get(`${basePath}/message`, async (req: any, res: any) => {
+        try {
+          const context = buildContext(req);
+          await this.handleStatefulRequest(req, res, context);
+        } catch (error) {
+          handleError(error, res);
+        }
+      });
+
+      // DELETE endpoint for session termination
+      app.delete(`${basePath}/message`, async (req: any, res: any) => {
+        try {
+          const context = buildContext(req);
+          await this.handleStatefulRequest(req, res, context);
+        } catch (error) {
+          handleError(error, res);
+        }
+      });
+
+      this.logger.info('Stateful session mode enabled', {
+        idleTimeout: this.config.session.idleTimeout,
+        maxLifetime: this.config.session.maxLifetime,
+        maxSessions: this.config.session.maxSessions
+      });
+    }
     
     // Progress monitoring endpoint (authenticated)
     app.get(`${basePath}/progress/stats`, async (req: any, res: any) => {
@@ -862,7 +1166,9 @@ export class AuthenticatedServerWrapper {
         version: this.config.version,
         resourceType: this.config.resourceType,
         instanceMode: this.config.instanceMode,
-        poolSize: this.serverPool.size
+        sessionMode: this.config.sessionMode,
+        poolSize: this.serverPool.size,
+        ...(isStateful ? { activeSessions: this.sessions.size } : {})
       });
     });
     
